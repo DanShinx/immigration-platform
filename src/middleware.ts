@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  let profile: { role: 'lawyer' | 'immigrant' } | null = null
+  let profile: { role: 'lawyer' | 'immigrant' | 'admin' } | null = null
 
   if (user && (isProtectedPath || isAuthEntryPath || isCompleteProfilePath)) {
     const { data } = await supabase
