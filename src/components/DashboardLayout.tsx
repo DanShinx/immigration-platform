@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { useI18n } from '@/components/LanguageProvider'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import {
@@ -13,7 +15,6 @@ import {
   LogOut,
   Menu,
   X,
-  ChevronDown,
   Bell,
 } from 'lucide-react'
 
@@ -30,25 +31,27 @@ interface DashboardLayoutProps {
   userName?: string
 }
 
-const lawyerNav: NavItem[] = [
-  { label: 'Panel principal', href: '/lawyer/dashboard', icon: LayoutDashboard },
-  { label: 'Expedientes', href: '/lawyer/immigrants', icon: Users },
-  { label: 'Documentos', href: '/lawyer/documents', icon: FileText },
-  { label: 'Configuración', href: '/lawyer/settings', icon: Settings },
-]
-
-const immigrantNav: NavItem[] = [
-  { label: 'Mi expediente', href: '/immigrant/dashboard', icon: LayoutDashboard },
-  { label: 'Mis documentos', href: '/immigrant/documents', icon: FileText },
-  { label: 'Mi caso', href: '/immigrant/my-case', icon: FileText },
-  { label: 'Configuración', href: '/immigrant/settings', icon: Settings },
-]
-
 export default function DashboardLayout({ children, role, userEmail, userName }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
+  const { messages } = useI18n()
+
+  const lawyerNav: NavItem[] = [
+    { label: messages.dashboardLayout.nav.lawyer.dashboard, href: '/lawyer/dashboard', icon: LayoutDashboard },
+    { label: messages.dashboardLayout.nav.lawyer.immigrants, href: '/lawyer/immigrants', icon: Users },
+    { label: messages.dashboardLayout.nav.lawyer.documents, href: '/lawyer/documents', icon: FileText },
+    { label: messages.dashboardLayout.nav.lawyer.settings, href: '/lawyer/settings', icon: Settings },
+  ]
+
+  const immigrantNav: NavItem[] = [
+    { label: messages.dashboardLayout.nav.immigrant.dashboard, href: '/immigrant/dashboard', icon: LayoutDashboard },
+    { label: messages.dashboardLayout.nav.immigrant.documents, href: '/immigrant/documents', icon: FileText },
+    { label: messages.dashboardLayout.nav.immigrant.case, href: '/immigrant/my-case', icon: FileText },
+    { label: messages.dashboardLayout.nav.immigrant.settings, href: '/immigrant/settings', icon: Settings },
+  ]
+
   const nav = role === 'lawyer' ? lawyerNav : immigrantNav
 
   async function handleLogout() {
@@ -68,7 +71,9 @@ export default function DashboardLayout({ children, role, userEmail, userName }:
         <div>
           <div className="text-sm font-bold text-slate-900 leading-tight">Inm. Platform</div>
           <div className="text-xs text-slate-400">
-            {role === 'lawyer' ? 'Portal Abogado' : 'Portal Inmigrante'}
+            {role === 'lawyer'
+              ? messages.dashboardLayout.lawyerPortal
+              : messages.dashboardLayout.immigrantPortal}
           </div>
         </div>
       </div>
@@ -106,7 +111,9 @@ export default function DashboardLayout({ children, role, userEmail, userName }:
             {userName?.charAt(0).toUpperCase() || 'U'}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-slate-900 truncate">{userName || 'Usuario'}</div>
+            <div className="text-sm font-medium text-slate-900 truncate">
+              {userName || messages.dashboardLayout.userFallback}
+            </div>
             <div className="text-xs text-slate-400 truncate">{userEmail}</div>
           </div>
         </div>
@@ -115,7 +122,7 @@ export default function DashboardLayout({ children, role, userEmail, userName }:
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors mt-1"
         >
           <LogOut className="w-4 h-4" />
-          Cerrar sesión
+          {messages.dashboardLayout.logout}
         </button>
       </div>
     </div>
@@ -161,6 +168,7 @@ export default function DashboardLayout({ children, role, userEmail, userName }:
           <div className="flex-1 lg:flex-initial" />
 
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <button className="relative p-2 rounded-lg hover:bg-slate-100 text-slate-500">
               <Bell className="w-4 h-4" />
               <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />

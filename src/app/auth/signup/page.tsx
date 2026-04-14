@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import LanguageSwitcher from '@/components/LanguageSwitcher'
+import { useI18n } from '@/components/LanguageProvider'
 import { createClient } from '@/lib/supabase/client'
 import { Eye, EyeOff, Users, Shield, ArrowLeft, Check } from 'lucide-react'
 import type { UserRole } from '@/types'
@@ -21,6 +23,8 @@ function GoogleIcon() {
 function SignUpForm() {
   const searchParams = useSearchParams()
   const defaultRole = (searchParams.get('role') as UserRole) || 'immigrant'
+  const { messages } = useI18n()
+  const t = messages.auth.signup
 
   const [role, setRole] = useState<UserRole>(defaultRole)
   const [fullName, setFullName] = useState('')
@@ -30,10 +34,8 @@ function SignUpForm() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  const router = useRouter()
   const supabase = createClient()
 
-  // Extra fields
   const [nationality, setNationality] = useState('')
   const [licenseNumber, setLicenseNumber] = useState('')
 
@@ -60,7 +62,6 @@ function SignUpForm() {
     }
 
     if (data.user) {
-      // Create profile
       const { error: profileError } = await supabase.from('profiles').insert({
         user_id: data.user.id,
         full_name: fullName,
@@ -69,13 +70,12 @@ function SignUpForm() {
       })
 
       if (!profileError) {
-        // Create role-specific record
         if (role === 'immigrant') {
           await supabase.from('immigrants').insert({
             user_id: data.user.id,
             full_name: fullName,
             email,
-            nationality: nationality || 'Pendiente',
+            nationality: nationality || messages.shared.placeholders.pending,
             case_status: 'pending',
           })
         } else {
@@ -83,7 +83,7 @@ function SignUpForm() {
             user_id: data.user.id,
             full_name: fullName,
             email,
-            license_number: licenseNumber || 'Pendiente',
+            license_number: licenseNumber || messages.shared.placeholders.pending,
             is_active: true,
           })
         }
@@ -99,22 +99,25 @@ function SignUpForm() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center max-w-md px-6">
+          <div className="flex justify-center mb-6">
+            <LanguageSwitcher />
+          </div>
           <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Check className="w-10 h-10 text-blue-600" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-3">¡Cuenta creada!</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-3">{t.successTitle}</h2>
           <p className="text-slate-600 mb-4">
-            Hemos enviado un correo de confirmación a:
+            {t.successIntro}
           </p>
           <p className="font-semibold text-brand-700 bg-brand-50 px-4 py-2 rounded-lg mb-4">{email}</p>
           <p className="text-slate-500 text-sm">
-            Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en el enlace de confirmación para activar tu cuenta. Después podrás iniciar sesión.
+            {t.successBody}
           </p>
           <Link
             href="/auth/login"
             className="inline-flex items-center justify-center mt-6 px-6 py-2.5 bg-brand-700 text-white font-medium rounded-lg hover:bg-brand-800 transition-colors text-sm"
           >
-            Ir al inicio de sesión
+            {t.successCta}
           </Link>
         </div>
       </div>
@@ -123,7 +126,6 @@ function SignUpForm() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 bg-brand-900 flex-col justify-between p-12 relative overflow-hidden">
         <Link href="/" className="relative flex items-center gap-3">
           <div className="flex items-center gap-1">
@@ -132,26 +134,22 @@ function SignUpForm() {
             <div className="w-3 h-8 bg-spain-red rounded-sm" />
           </div>
           <div>
-            <span className="font-bold text-white text-lg block leading-tight">Immigration Platform</span>
-            <span className="text-xs text-brand-300 uppercase tracking-wide">España</span>
+            <span className="font-bold text-white text-lg block leading-tight">{messages.shared.appName}</span>
+            <span className="text-xs text-brand-300 uppercase tracking-wide">{messages.shared.appNameSpain.split(' ').pop()}</span>
           </div>
         </Link>
 
         <div className="relative">
           <h2 className="text-4xl font-bold text-white mb-4 leading-tight">
-            Comienza tu proceso de inmigración
+            {t.panelTitle}
           </h2>
           <p className="text-brand-200 text-lg leading-relaxed">
-            Crea tu cuenta en menos de 2 minutos y conecta con abogados especializados.
+            {t.panelSubtitle}
           </p>
         </div>
 
         <div className="relative space-y-3">
-          {[
-            'Acceso seguro y privado a tus expedientes',
-            'Abogados especializados en derecho de extranjería',
-            'Seguimiento en tiempo real de tu caso',
-          ].map((item) => (
+          {t.bullets.map((item) => (
             <div key={item} className="flex items-center gap-3">
               <div className="w-5 h-5 rounded-full bg-green-400/20 flex items-center justify-center flex-shrink-0">
                 <Check className="w-3 h-3 text-green-400" />
@@ -162,34 +160,35 @@ function SignUpForm() {
         </div>
       </div>
 
-      {/* Right panel */}
       <div className="flex-1 flex flex-col justify-center py-12 px-6 sm:px-12 bg-white overflow-y-auto">
         <div className="max-w-md w-full mx-auto">
-          <div className="lg:hidden mb-8">
-            <Link href="/" className="flex items-center gap-3">
-              <div className="flex items-center gap-1">
-                <div className="w-2.5 h-7 bg-spain-red rounded-sm" />
-                <div className="w-2.5 h-7 bg-spain-yellow rounded-sm" />
-                <div className="w-2.5 h-7 bg-spain-red rounded-sm" />
-              </div>
-              <span className="font-bold text-brand-900 text-lg">Immigration Platform España</span>
-            </Link>
+          <div className="flex items-center justify-between mb-8">
+            <div className="lg:hidden">
+              <Link href="/" className="flex items-center gap-3">
+                <div className="flex items-center gap-1">
+                  <div className="w-2.5 h-7 bg-spain-red rounded-sm" />
+                  <div className="w-2.5 h-7 bg-spain-yellow rounded-sm" />
+                  <div className="w-2.5 h-7 bg-spain-red rounded-sm" />
+                </div>
+                <span className="font-bold text-brand-900 text-lg">{messages.shared.appNameSpain}</span>
+              </Link>
+            </div>
+            <LanguageSwitcher />
           </div>
 
           <Link href="/" className="hidden lg:inline-flex items-center gap-2 text-sm text-slate-500 hover:text-brand-700 mb-8 transition-colors">
             <ArrowLeft className="w-4 h-4" />
-            Volver al inicio
+            {messages.shared.actions.backHome}
           </Link>
 
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">Crear cuenta</h1>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{t.title}</h1>
           <p className="text-slate-500 mb-8">
-            ¿Ya tienes cuenta?{' '}
+            {t.loginPrompt}{' '}
             <Link href="/auth/login" className="text-brand-700 font-medium hover:underline">
-              Inicia sesión
+              {t.loginLink}
             </Link>
           </p>
 
-          {/* Role selector */}
           <div className="grid grid-cols-2 gap-3 mb-8">
             <button
               type="button"
@@ -202,7 +201,7 @@ function SignUpForm() {
             >
               <Users className={`w-6 h-6 ${role === 'immigrant' ? 'text-brand-700' : 'text-slate-400'}`} />
               <span className={`text-sm font-medium ${role === 'immigrant' ? 'text-brand-700' : 'text-slate-600'}`}>
-                Inmigrante
+                {t.roles.immigrant}
               </span>
             </button>
             <button
@@ -216,7 +215,7 @@ function SignUpForm() {
             >
               <Shield className={`w-6 h-6 ${role === 'lawyer' ? 'text-brand-700' : 'text-slate-400'}`} />
               <span className={`text-sm font-medium ${role === 'lawyer' ? 'text-brand-700' : 'text-slate-600'}`}>
-                Abogado
+                {t.roles.lawyer}
               </span>
             </button>
           </div>
@@ -230,28 +229,28 @@ function SignUpForm() {
           <form onSubmit={handleSignUp} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Nombre completo
+                {t.fullName}
               </label>
               <input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
-                placeholder="Juan García López"
+                placeholder={t.placeholders.fullName}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition-all"
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Correo electrónico
+                {t.email}
               </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="tu@email.com"
+                placeholder={t.placeholders.email}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition-all"
               />
             </div>
@@ -259,13 +258,13 @@ function SignUpForm() {
             {role === 'immigrant' && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Nacionalidad
+                  {t.nationality}
                 </label>
                 <input
                   type="text"
                   value={nationality}
                   onChange={(e) => setNationality(e.target.value)}
-                  placeholder="Colombiana, Marroquí, etc."
+                  placeholder={t.placeholders.nationality}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition-all"
                 />
               </div>
@@ -274,13 +273,13 @@ function SignUpForm() {
             {role === 'lawyer' && (
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                  Número de colegiado
+                  {t.licenseNumber}
                 </label>
                 <input
                   type="text"
                   value={licenseNumber}
                   onChange={(e) => setLicenseNumber(e.target.value)}
-                  placeholder="28/12345"
+                  placeholder={t.placeholders.licenseNumber}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition-all"
                 />
               </div>
@@ -288,7 +287,7 @@ function SignUpForm() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Contraseña
+                {t.password}
               </label>
               <div className="relative">
                 <input
@@ -297,7 +296,7 @@ function SignUpForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder={t.placeholders.password}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 pr-11 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition-all"
                 />
                 <button
@@ -321,18 +320,16 @@ function SignUpForm() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                  Creando cuenta...
+                  {t.submitting}
                 </>
-              ) : (
-                `Crear cuenta como ${role === 'lawyer' ? 'abogado' : 'inmigrante'}`
-              )}
+              ) : role === 'lawyer' ? t.submitLawyer : t.submitImmigrant}
             </button>
 
             <p className="text-xs text-slate-400 text-center">
-              Al registrarte aceptas nuestros{' '}
-              <Link href="#" className="text-brand-600 hover:underline">términos de uso</Link>{' '}
-              y{' '}
-              <Link href="#" className="text-brand-600 hover:underline">política de privacidad</Link>.
+              {t.termsPrefix}{' '}
+              <Link href="#" className="text-brand-600 hover:underline">{t.terms}</Link>{' '}
+              {t.and}{' '}
+              <Link href="#" className="text-brand-600 hover:underline">{t.privacy}</Link>.
             </p>
           </form>
         </div>

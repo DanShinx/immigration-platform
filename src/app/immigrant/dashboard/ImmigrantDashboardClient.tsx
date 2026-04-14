@@ -1,8 +1,9 @@
 'use client'
 
-import { FileText, User, Shield, AlertCircle, CheckCircle, Clock, ArrowRight, Upload } from 'lucide-react'
+import { FileText, User, Shield, AlertCircle, CheckCircle, Clock, Upload } from 'lucide-react'
 import Link from 'next/link'
-import { caseStatusLabels, formatDate } from '@/lib/utils'
+import { useI18n } from '@/components/LanguageProvider'
+import { formatDate, getCaseStatusMeta } from '@/lib/utils'
 
 interface Props {
   immigrant: any
@@ -11,22 +12,22 @@ interface Props {
   userName: string
 }
 
-function StatusTimeline({ status }: { status: string }) {
+function StatusTimeline({ status, labels }: { status: string; labels: { registered: string; review: string; documents: string; submitted: string; resolved: string } }) {
   const steps = [
-    { id: 'pending', label: 'Registrado' },
-    { id: 'in_review', label: 'En revisión' },
-    { id: 'documents_required', label: 'Documentos' },
-    { id: 'submitted', label: 'Enviado' },
-    { id: 'approved', label: 'Resuelto' },
+    { id: 'pending', label: labels.registered },
+    { id: 'in_review', label: labels.review },
+    { id: 'documents_required', label: labels.documents },
+    { id: 'submitted', label: labels.submitted },
+    { id: 'approved', label: labels.resolved },
   ]
 
-  const ORDER = ['pending', 'in_review', 'documents_required', 'submitted', 'approved', 'rejected']
-  const currentIndex = ORDER.indexOf(status)
+  const order = ['pending', 'in_review', 'documents_required', 'submitted', 'approved', 'rejected']
+  const currentIndex = order.indexOf(status)
 
   return (
     <div className="flex items-center gap-0 mt-4">
       {steps.map((step, idx) => {
-        const stepIndex = ORDER.indexOf(step.id)
+        const stepIndex = order.indexOf(step.id)
         const isDone = currentIndex > stepIndex
         const isCurrent = currentIndex === stepIndex
 
@@ -63,45 +64,49 @@ function StatusTimeline({ status }: { status: string }) {
 }
 
 export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocuments, userName }: Props) {
+  const { messages, locale } = useI18n()
   const hour = new Date().getHours()
-  const greeting = hour < 12 ? 'Buenos días' : hour < 20 ? 'Buenas tardes' : 'Buenas noches'
-  const status = immigrant ? caseStatusLabels[immigrant.case_status] : null
+  const greeting =
+    hour < 12
+      ? messages.shared.greetings.morning
+      : hour < 20
+      ? messages.shared.greetings.afternoon
+      : messages.shared.greetings.evening
+  const status = immigrant ? getCaseStatusMeta(immigrant.case_status, locale) : null
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900">
           {greeting}, {userName.split(' ')[0]} 👋
         </h1>
         <p className="text-slate-500 mt-1">
-          Aquí puedes ver el estado de tu proceso de inmigración en España.
+          {messages.immigrantDashboard.intro}
         </p>
       </div>
 
-      {/* Case status card */}
       {immigrant ? (
         <div className="bg-white rounded-2xl border border-slate-100 p-6">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-semibold text-slate-900">Estado de tu expediente</h2>
+            <h2 className="font-semibold text-slate-900">{messages.immigrantDashboard.caseTitle}</h2>
             {status && (
               <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${status.color}`}>
                 {status.label}
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-500">Expediente #{immigrant.id?.slice(0, 8).toUpperCase()}</p>
+          <p className="text-sm text-slate-500">{messages.immigrantDashboard.caseNumber} #{immigrant.id?.slice(0, 8).toUpperCase()}</p>
 
           {immigrant.case_status !== 'rejected' && (
-            <StatusTimeline status={immigrant.case_status} />
+            <StatusTimeline status={immigrant.case_status} labels={messages.immigrantDashboard.timeline} />
           )}
 
           {immigrant.case_status === 'rejected' && (
             <div className="mt-4 p-4 bg-red-50 rounded-xl flex gap-3">
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-red-700">Expediente rechazado</p>
-                <p className="text-sm text-red-600 mt-0.5">Contacta con tu abogado para conocer los próximos pasos.</p>
+                <p className="text-sm font-medium text-red-700">{messages.immigrantDashboard.rejectedTitle}</p>
+                <p className="text-sm text-red-600 mt-0.5">{messages.immigrantDashboard.rejectedBody}</p>
               </div>
             </div>
           )}
@@ -110,8 +115,8 @@ export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocu
             <div className="mt-4 p-4 bg-orange-50 rounded-xl flex gap-3">
               <AlertCircle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-orange-700">Se requieren documentos</p>
-                <p className="text-sm text-orange-600 mt-0.5">Tu abogado necesita que subas documentación adicional.</p>
+                <p className="text-sm font-medium text-orange-700">{messages.immigrantDashboard.docsRequiredTitle}</p>
+                <p className="text-sm text-orange-600 mt-0.5">{messages.immigrantDashboard.docsRequiredBody}</p>
               </div>
             </div>
           )}
@@ -119,17 +124,16 @@ export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocu
       ) : (
         <div className="bg-brand-50 rounded-2xl border border-brand-100 p-6">
           <AlertCircle className="w-8 h-8 text-brand-600 mb-3" />
-          <h3 className="font-semibold text-brand-900">Expediente en configuración</h3>
-          <p className="text-sm text-brand-600 mt-1">Tu expediente está siendo preparado. Pronto un abogado será asignado a tu caso.</p>
+          <h3 className="font-semibold text-brand-900">{messages.immigrantDashboard.setupTitle}</h3>
+          <p className="text-sm text-brand-600 mt-1">{messages.immigrantDashboard.setupBody}</p>
         </div>
       )}
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Lawyer card */}
         <div className="bg-white rounded-2xl border border-slate-100 p-6">
           <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <Shield className="w-4 h-4 text-brand-600" />
-            Tu abogado
+            {messages.immigrantDashboard.lawyerCard}
           </h3>
           {lawyer ? (
             <div className="space-y-3">
@@ -139,17 +143,19 @@ export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocu
                 </div>
                 <div>
                   <div className="font-semibold text-slate-900">{lawyer.full_name}</div>
-                  <div className="text-sm text-slate-500">{lawyer.specialization || 'Derecho de extranjería'}</div>
+                  <div className="text-sm text-slate-500">
+                    {lawyer.specialization || messages.immigrantDashboard.defaultSpecialization}
+                  </div>
                 </div>
               </div>
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <div className="flex gap-2 text-sm">
-                  <span className="text-slate-400 w-16 flex-shrink-0">Email</span>
+                  <span className="text-slate-400 w-16 flex-shrink-0">{messages.immigrantDashboard.fields.email}</span>
                   <span className="text-slate-700">{lawyer.email}</span>
                 </div>
                 {lawyer.phone && (
                   <div className="flex gap-2 text-sm">
-                    <span className="text-slate-400 w-16 flex-shrink-0">Teléfono</span>
+                    <span className="text-slate-400 w-16 flex-shrink-0">{messages.immigrantDashboard.fields.phone}</span>
                     <span className="text-slate-700">{lawyer.phone}</span>
                   </div>
                 )}
@@ -158,34 +164,33 @@ export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocu
           ) : (
             <div className="py-6 text-center">
               <User className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-sm text-slate-400 font-medium">Sin abogado asignado aún</p>
-              <p className="text-xs text-slate-300 mt-1">Serás notificado cuando se asigne uno</p>
+              <p className="text-sm text-slate-400 font-medium">{messages.immigrantDashboard.noLawyer}</p>
+              <p className="text-xs text-slate-300 mt-1">{messages.immigrantDashboard.noLawyerBody}</p>
             </div>
           )}
         </div>
 
-        {/* Documents card */}
         <div className="bg-white rounded-2xl border border-slate-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-slate-900 flex items-center gap-2">
               <FileText className="w-4 h-4 text-brand-600" />
-              Documentos
+              {messages.immigrantDashboard.documentsCard}
             </h3>
             <Link href="/immigrant/documents" className="text-xs text-brand-600 hover:underline font-medium">
-              Ver todos
+              {messages.immigrantDashboard.viewAll}
             </Link>
           </div>
 
           {recentDocuments.length === 0 ? (
             <div className="py-6 text-center">
               <FileText className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-              <p className="text-sm text-slate-400 font-medium">No has subido documentos</p>
+              <p className="text-sm text-slate-400 font-medium">{messages.immigrantDashboard.noDocuments}</p>
               <Link
                 href="/immigrant/documents"
                 className="inline-flex items-center gap-1.5 mt-3 text-sm text-brand-600 font-medium hover:underline"
               >
                 <Upload className="w-3.5 h-3.5" />
-                Subir primer documento
+                {messages.immigrantDashboard.uploadFirst}
               </Link>
             </div>
           ) : (
@@ -195,7 +200,7 @@ export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocu
                   <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-slate-700 truncate">{doc.file_name}</div>
-                    <div className="text-xs text-slate-400">{formatDate(doc.uploaded_at)}</div>
+                    <div className="text-xs text-slate-400">{formatDate(doc.uploaded_at, locale)}</div>
                   </div>
                 </div>
               ))}
@@ -204,18 +209,17 @@ export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocu
         </div>
       </div>
 
-      {/* Personal info summary */}
       {immigrant && (
         <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">Mis datos</h3>
+          <h3 className="font-semibold text-slate-900 mb-4">{messages.immigrantDashboard.myData}</h3>
           <div className="grid sm:grid-cols-3 gap-4">
             {[
-              { label: 'Nombre', value: immigrant.full_name },
-              { label: 'Nacionalidad', value: immigrant.nationality },
-              { label: 'Email', value: immigrant.email },
-              { label: 'Teléfono', value: immigrant.phone || '—' },
-              { label: 'Domicilio en España', value: immigrant.address_in_spain || '—' },
-              { label: 'Pasaporte', value: immigrant.passport_number || '—' },
+              { label: messages.immigrantDashboard.fields.name, value: immigrant.full_name },
+              { label: messages.immigrantDashboard.fields.nationality, value: immigrant.nationality },
+              { label: messages.immigrantDashboard.fields.email, value: immigrant.email },
+              { label: messages.immigrantDashboard.fields.phone, value: immigrant.phone || messages.shared.placeholders.unavailable },
+              { label: messages.immigrantDashboard.fields.address, value: immigrant.address_in_spain || messages.shared.placeholders.unavailable },
+              { label: messages.immigrantDashboard.fields.passport, value: immigrant.passport_number || messages.shared.placeholders.unavailable },
             ].map((field) => (
               <div key={field.label}>
                 <div className="text-xs text-slate-400 mb-0.5">{field.label}</div>

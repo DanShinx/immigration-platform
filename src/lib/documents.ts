@@ -1,28 +1,41 @@
+import { defaultLocale, getTranslations, type Locale } from '@/lib/translations'
+
 const DEFAULT_DOCUMENTS_BUCKET = 'case-documents'
 
 export const documentsBucket =
   process.env.NEXT_PUBLIC_SUPABASE_DOCUMENTS_BUCKET || DEFAULT_DOCUMENTS_BUCKET
 
-export const documentTypeOptions = [
-  { value: 'passport', label: 'Pasaporte' },
-  { value: 'nie', label: 'NIE / TIE' },
-  { value: 'visa', label: 'Visado' },
-  { value: 'residence_proof', label: 'Empadronamiento / domicilio' },
-  { value: 'criminal_record', label: 'Antecedentes penales' },
-  { value: 'birth_certificate', label: 'Certificado de nacimiento' },
-  { value: 'marriage_certificate', label: 'Certificado de matrimonio' },
-  { value: 'work_contract', label: 'Contrato de trabajo' },
-  { value: 'bank_statement', label: 'Extracto bancario' },
-  { value: 'other', label: 'Otro documento' },
+export const documentTypeValues = [
+  'passport',
+  'nie',
+  'visa',
+  'residence_proof',
+  'criminal_record',
+  'birth_certificate',
+  'marriage_certificate',
+  'work_contract',
+  'bank_statement',
+  'other',
 ] as const
 
-export function getDocumentTypeLabel(documentType?: string | null) {
-  if (!documentType) return 'Documento'
+export function getDocumentTypeOptions(locale: Locale = defaultLocale) {
+  return documentTypeValues.map((value) => ({
+    value,
+    label: getDocumentTypeLabel(value, locale),
+  }))
+}
 
-  return (
-    documentTypeOptions.find((option) => option.value === documentType)?.label ||
-    documentType
-  )
+export function getDocumentTypeLabel(
+  documentType?: string | null,
+  locale: Locale = defaultLocale
+) {
+  const messages = getTranslations(locale)
+
+  if (!documentType) return messages.shared.placeholders.unavailable
+
+  return messages.shared.documentTypes[
+    documentType as keyof typeof messages.shared.documentTypes
+  ] || documentType
 }
 
 export function sanitizeFileName(fileName: string) {
@@ -66,8 +79,8 @@ export function getStoragePathFromFileUrl(fileUrl: string) {
   }
 }
 
-export function formatFileSize(bytes?: number | null) {
-  if (!bytes || Number.isNaN(bytes)) return 'Tamaño no disponible'
+export function formatFileSize(bytes?: number | null, locale: Locale = defaultLocale) {
+  if (!bytes || Number.isNaN(bytes)) return getTranslations(locale).shared.placeholders.unavailable
 
   const units = ['B', 'KB', 'MB', 'GB']
   let value = bytes

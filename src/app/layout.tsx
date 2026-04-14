@@ -1,13 +1,15 @@
 import type { Metadata } from 'next'
+import { LanguageProvider } from '@/components/LanguageProvider'
+import { translations } from '@/lib/translations'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Immigration Platform Spain',
-  description: 'Plataforma de gestión de inmigración en España — conectamos inmigrantes con abogados especializados.',
-  keywords: 'inmigración, españa, abogados, visa, residencia, permisos',
+  title: translations.es.metadata.title,
+  description: translations.es.metadata.description,
+  keywords: translations.es.metadata.keywords,
   openGraph: {
-    title: 'Immigration Platform Spain',
-    description: 'Plataforma de gestión de inmigración en España',
+    title: translations.es.metadata.title,
+    description: translations.es.metadata.description,
     type: 'website',
   },
 }
@@ -18,8 +20,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="es">
-      <body>{children}</body>
+    <html lang="es" suppressHydrationWarning>
+      <body>
+        <LanguageProvider>{children}</LanguageProvider>
+      </body>
     </html>
   )
 }
