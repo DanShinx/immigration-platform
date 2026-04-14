@@ -35,7 +35,7 @@ export default async function AdminDashboardPage() {
   ])
 
   // Hydrate flag reporter profiles
-  const flagReporterIds = [...new Set((recentFlags || []).map((f: any) => f.reporter_user_id))]
+  const flagReporterIds = Array.from(new Set((recentFlags || []).map((f: any) => f.reporter_user_id)))
   const { data: flagProfiles } = flagReporterIds.length
     ? await supabase.from('profiles').select('user_id, full_name, email').in('user_id', flagReporterIds)
     : { data: [] as any[] }

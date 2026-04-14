@@ -20,7 +20,7 @@ export default async function AdminFlagsPage() {
     .order('created_at', { ascending: false })
 
   // Hydrate reporter info from profiles
-  const reporterIds = [...new Set((flags || []).map((f: any) => f.reporter_user_id))]
+  const reporterIds = Array.from(new Set((flags || []).map((f: any) => f.reporter_user_id)))
   const { data: reporters } = reporterIds.length
     ? await supabase.from('profiles').select('user_id, full_name, email').in('user_id', reporterIds)
     : { data: [] as any[] }
