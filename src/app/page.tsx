@@ -301,7 +301,7 @@ export default function HomePage() {
           <div className="mt-8 flex justify-center">
             <Link
               href="/auth/login"
-              className="text-slate-700 hover:text-slate-500 transition-colors"
+              className="text-slate-600 hover:text-slate-300 transition-colors"
               title="Admin"
             >
               <Lock className="w-3.5 h-3.5" />
