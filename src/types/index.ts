@@ -1,4 +1,6 @@
-export type UserRole = 'lawyer' | 'immigrant'
+export type UserRole = 'lawyer' | 'immigrant' | 'admin'
+
+export type LawyerApprovalStatus = 'pending_approval' | 'approved' | 'rejected'
 
 export interface Profile {
   id: string
@@ -23,6 +25,7 @@ export interface LawyerProfile {
   bio?: string
   avatar_url?: string
   is_active: boolean
+  approval_status: LawyerApprovalStatus
   created_at: string
 }
 
@@ -83,4 +86,34 @@ export interface LawyerAssignmentRequest {
   message?: string | null
   created_at: string
   responded_at?: string | null
+}
+
+export type FlagCategory =
+  | 'lawyer_misconduct'
+  | 'document_issue'
+  | 'technical_problem'
+  | 'other'
+
+export type FlagStatus = 'open' | 'in_review' | 'resolved' | 'dismissed'
+
+export interface AdminFlag {
+  id: string
+  reporter_user_id: string
+  target_user_id?: string | null
+  category: FlagCategory
+  description: string
+  status: FlagStatus
+  admin_notes?: string | null
+  created_at: string
+  resolved_at?: string | null
+}
+
+export interface AuditLogEntry {
+  id: string
+  actor_user_id?: string | null
+  action: string
+  target_type?: string | null
+  target_id?: string | null
+  metadata?: Record<string, unknown> | null
+  created_at: string
 }

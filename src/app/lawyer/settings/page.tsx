@@ -30,7 +30,7 @@ export default async function LawyerSettingsPage() {
 
   return (
     <DashboardLayout role="lawyer" userEmail={user.email} userName={profile.full_name}>
-      <LawyerSettingsClient lawyer={lawyer} userEmail={user.email ?? ''} />
+      <LawyerSettingsClient lawyer={lawyer} userEmail={user.email ?? ''} userId={user.id} />
     </DashboardLayout>
   )
 }

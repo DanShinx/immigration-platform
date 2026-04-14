@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { User, Mail, Lock } from 'lucide-react'
+import { User, Mail, Lock, Flag } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useI18n } from '@/components/LanguageProvider'
 import Button from '@/components/ui/Button'
@@ -21,12 +21,16 @@ interface ImmigrantRecord {
 interface Props {
   immigrant: ImmigrantRecord
   userEmail: string
+  userId: string
 }
 
-export default function ImmigrantSettingsClient({ immigrant, userEmail }: Props) {
+const FLAG_CATEGORIES = ['lawyer_misconduct', 'document_issue', 'technical_problem', 'other'] as const
+
+export default function ImmigrantSettingsClient({ immigrant, userEmail, userId }: Props) {
   const supabase = createClient()
   const { messages } = useI18n()
   const t = messages.immigrantSettings
+  const rt = messages.admin.reportIssue
 
   const [fullName, setFullName] = useState(immigrant.full_name)
   const [phone, setPhone] = useState(immigrant.phone ?? '')
@@ -37,6 +41,12 @@ export default function ImmigrantSettingsClient({ immigrant, userEmail }: Props)
 
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  // Report issue state
+  const [flagCategory, setFlagCategory] = useState<typeof FLAG_CATEGORIES[number]>('technical_problem')
+  const [flagDescription, setFlagDescription] = useState('')
+  const [submittingFlag, setSubmittingFlag] = useState(false)
+  const [flagFeedback, setFlagFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -71,6 +81,27 @@ export default function ImmigrantSettingsClient({ immigrant, userEmail }: Props)
 
     setFeedback({ type: 'success', message: t.successMessage })
     setSaving(false)
+  }
+
+  async function handleReportSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!flagDescription.trim()) return
+    setSubmittingFlag(true)
+    setFlagFeedback(null)
+
+    const { error } = await supabase.from('admin_flags').insert({
+      reporter_user_id: userId,
+      category: flagCategory,
+      description: flagDescription.trim(),
+    })
+
+    if (error) {
+      setFlagFeedback({ type: 'error', message: rt.error })
+    } else {
+      setFlagFeedback({ type: 'success', message: rt.success })
+      setFlagDescription('')
+    }
+    setSubmittingFlag(false)
   }
 
   return (
@@ -174,6 +205,50 @@ export default function ImmigrantSettingsClient({ immigrant, userEmail }: Props)
           {saving ? t.saving : t.save}
         </Button>
       </form>
+
+      {/* Report an issue */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <Flag className="w-4 h-4 text-red-500" />
+          <h2 className="font-semibold text-slate-900">{rt.title}</h2>
+        </div>
+        <p className="text-sm text-slate-500 mb-4">{rt.subtitle}</p>
+
+        {flagFeedback && (
+          <div className={`rounded-xl border px-4 py-3 text-sm mb-4 ${flagFeedback.type === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
+            {flagFeedback.message}
+          </div>
+        )}
+
+        <form onSubmit={handleReportSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">{rt.category}</label>
+            <select
+              value={flagCategory}
+              onChange={(e) => setFlagCategory(e.target.value as typeof FLAG_CATEGORIES[number])}
+              className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+            >
+              {FLAG_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{rt.categories[c]}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">{rt.description}</label>
+            <textarea
+              rows={4}
+              value={flagDescription}
+              onChange={(e) => setFlagDescription(e.target.value)}
+              placeholder={rt.descriptionPlaceholder}
+              required
+              className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 resize-none"
+            />
+          </div>
+          <Button type="submit" loading={submittingFlag} variant="outline">
+            {submittingFlag ? rt.submitting : rt.submit}
+          </Button>
+        </form>
+      </div>
     </div>
   )
 }

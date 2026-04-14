@@ -30,7 +30,7 @@ export default async function ImmigrantSettingsPage() {
 
   return (
     <DashboardLayout role="immigrant" userEmail={user.email} userName={profile.full_name}>
-      <ImmigrantSettingsClient immigrant={immigrant} userEmail={user.email ?? ''} />
+      <ImmigrantSettingsClient immigrant={immigrant} userEmail={user.email ?? ''} userId={user.id} />
     </DashboardLayout>
   )
 }

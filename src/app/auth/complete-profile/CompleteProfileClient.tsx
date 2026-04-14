@@ -90,7 +90,8 @@ export default function CompleteProfileClient({
           full_name: normalizedFullName,
           email: user.email,
           license_number: licenseNumber.trim() || messages.shared.placeholders.pending,
-          is_active: true,
+          is_active: false,
+          approval_status: 'pending_approval',
         },
         { onConflict: 'user_id' }
       )

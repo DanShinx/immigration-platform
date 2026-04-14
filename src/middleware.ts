@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
-  const isProtectedPath = pathname.startsWith('/lawyer') || pathname.startsWith('/immigrant')
+  const isProtectedPath = pathname.startsWith('/lawyer') || pathname.startsWith('/immigrant') || pathname.startsWith('/admin')
   const isAuthEntryPath = pathname.startsWith('/auth/login') || pathname.startsWith('/auth/signup')
   const isCompleteProfilePath = pathname.startsWith('/auth/complete-profile')
 
@@ -64,35 +64,37 @@ export async function middleware(request: NextRequest) {
   // If logged in, check role-based access
   if (user && isProtectedPath && profile) {
     const role = profile.role
+    if (pathname.startsWith('/admin') && role !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = role === 'lawyer' ? '/lawyer/dashboard' : '/immigrant/dashboard'
+      return NextResponse.redirect(url)
+    }
     if (pathname.startsWith('/lawyer') && role !== 'lawyer') {
       const url = request.nextUrl.clone()
-      url.pathname = '/immigrant/dashboard'
+      url.pathname = role === 'admin' ? '/admin/dashboard' : '/immigrant/dashboard'
       return NextResponse.redirect(url)
     }
     if (pathname.startsWith('/immigrant') && role !== 'immigrant') {
       const url = request.nextUrl.clone()
-      url.pathname = '/lawyer/dashboard'
+      url.pathname = role === 'admin' ? '/admin/dashboard' : '/lawyer/dashboard'
       return NextResponse.redirect(url)
     }
   }
 
   // Redirect logged-in users away from auth pages
   if (user && isAuthEntryPath && profile) {
-    if (profile?.role === 'lawyer') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/lawyer/dashboard'
-      return NextResponse.redirect(url)
-    }
-    if (profile?.role === 'immigrant') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/immigrant/dashboard'
-      return NextResponse.redirect(url)
-    }
+    const url = request.nextUrl.clone()
+    if (profile.role === 'admin') url.pathname = '/admin/dashboard'
+    else if (profile.role === 'lawyer') url.pathname = '/lawyer/dashboard'
+    else url.pathname = '/immigrant/dashboard'
+    return NextResponse.redirect(url)
   }
 
   if (user && isCompleteProfilePath && profile) {
     const url = request.nextUrl.clone()
-    url.pathname = profile.role === 'lawyer' ? '/lawyer/dashboard' : '/immigrant/dashboard'
+    if (profile.role === 'admin') url.pathname = '/admin/dashboard'
+    else if (profile.role === 'lawyer') url.pathname = '/lawyer/dashboard'
+    else url.pathname = '/immigrant/dashboard'
     return NextResponse.redirect(url)
   }
 
