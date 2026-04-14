@@ -26,7 +26,13 @@ export default function LoginPage() {
     })
 
     if (signInError) {
-      setError('Credenciales incorrectas. Por favor, inténtalo de nuevo.')
+      if (signInError.message.toLowerCase().includes('email not confirmed')) {
+        setError('Tu cuenta está pendiente de confirmación. Revisa tu correo electrónico y haz clic en el enlace de activación.')
+      } else if (signInError.message.toLowerCase().includes('invalid login credentials')) {
+        setError('Correo o contraseña incorrectos. Por favor, inténtalo de nuevo.')
+      } else {
+        setError(signInError.message)
+      }
       setLoading(false)
       return
     }

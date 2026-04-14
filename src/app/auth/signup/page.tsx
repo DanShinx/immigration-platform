@@ -79,13 +79,6 @@ function SignUpForm() {
       }
 
       setSuccess(true)
-      setTimeout(() => {
-        if (role === 'lawyer') {
-          router.push('/lawyer/dashboard')
-        } else {
-          router.push('/immigrant/dashboard')
-        }
-      }, 2000)
     }
 
     setLoading(false)
@@ -95,13 +88,23 @@ function SignUpForm() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center max-w-md px-6">
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <Check className="w-10 h-10 text-green-600" />
+          <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Check className="w-10 h-10 text-blue-600" />
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mb-3">¡Cuenta creada!</h2>
-          <p className="text-slate-500">
-            Tu cuenta ha sido creada correctamente. Redirigiendo a tu panel...
+          <p className="text-slate-600 mb-4">
+            Hemos enviado un correo de confirmación a:
           </p>
+          <p className="font-semibold text-brand-700 bg-brand-50 px-4 py-2 rounded-lg mb-4">{email}</p>
+          <p className="text-slate-500 text-sm">
+            Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en el enlace de confirmación para activar tu cuenta. Después podrás iniciar sesión.
+          </p>
+          <Link
+            href="/auth/login"
+            className="inline-flex items-center justify-center mt-6 px-6 py-2.5 bg-brand-700 text-white font-medium rounded-lg hover:bg-brand-800 transition-colors text-sm"
+          >
+            Ir al inicio de sesión
+          </Link>
         </div>
       </div>
     )
