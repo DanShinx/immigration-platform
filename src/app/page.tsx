@@ -298,6 +298,15 @@ export default function HomePage() {
               {t.footer.rights}
             </p>
           </div>
+          <div className="mt-8 flex justify-center">
+            <Link
+              href="/auth/login"
+              className="text-slate-700 hover:text-slate-500 transition-colors"
+              title="Admin"
+            >
+              <Lock className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
