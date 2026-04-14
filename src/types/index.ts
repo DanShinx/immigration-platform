@@ -68,3 +68,19 @@ export interface CaseNote {
   is_private: boolean
   created_at: string
 }
+
+export type LawyerAssignmentRequestStatus =
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'withdrawn'
+
+export interface LawyerAssignmentRequest {
+  id: string
+  immigrant_id: string
+  lawyer_user_id: string
+  status: LawyerAssignmentRequestStatus
+  message?: string | null
+  created_at: string
+  responded_at?: string | null
+}

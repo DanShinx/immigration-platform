@@ -12,6 +12,8 @@ import {
   Users,
   FileText,
   Settings,
+  Briefcase,
+  Inbox,
   LogOut,
   Menu,
   X,
@@ -41,12 +43,14 @@ export default function DashboardLayout({ children, role, userEmail, userName }:
   const lawyerNav: NavItem[] = [
     { label: messages.dashboardLayout.nav.lawyer.dashboard, href: '/lawyer/dashboard', icon: LayoutDashboard },
     { label: messages.dashboardLayout.nav.lawyer.immigrants, href: '/lawyer/immigrants', icon: Users },
+    { label: messages.dashboardLayout.nav.lawyer.requests, href: '/lawyer/requests', icon: Inbox },
     { label: messages.dashboardLayout.nav.lawyer.documents, href: '/lawyer/documents', icon: FileText },
     { label: messages.dashboardLayout.nav.lawyer.settings, href: '/lawyer/settings', icon: Settings },
   ]
 
   const immigrantNav: NavItem[] = [
     { label: messages.dashboardLayout.nav.immigrant.dashboard, href: '/immigrant/dashboard', icon: LayoutDashboard },
+    { label: messages.dashboardLayout.nav.immigrant.lawyers, href: '/immigrant/lawyers', icon: Briefcase },
     { label: messages.dashboardLayout.nav.immigrant.documents, href: '/immigrant/documents', icon: FileText },
     { label: messages.dashboardLayout.nav.immigrant.case, href: '/immigrant/my-case', icon: FileText },
     { label: messages.dashboardLayout.nav.immigrant.settings, href: '/immigrant/settings', icon: Settings },

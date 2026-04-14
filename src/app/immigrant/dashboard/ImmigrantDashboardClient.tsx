@@ -166,6 +166,13 @@ export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocu
               <User className="w-10 h-10 text-slate-200 mx-auto mb-3" />
               <p className="text-sm text-slate-400 font-medium">{messages.immigrantDashboard.noLawyer}</p>
               <p className="text-xs text-slate-300 mt-1">{messages.immigrantDashboard.noLawyerBody}</p>
+              <Link
+                href="/immigrant/lawyers"
+                className="inline-flex items-center gap-1.5 mt-3 text-sm text-brand-600 font-medium hover:underline"
+              >
+                <Shield className="w-3.5 h-3.5" />
+                {messages.dashboardLayout.nav.immigrant.lawyers}
+              </Link>
             </div>
           )}
         </div>
