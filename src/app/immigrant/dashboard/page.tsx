@@ -57,12 +57,14 @@ export default async function ImmigrantDashboardPage() {
     pendingLawyer = lawyer
   }
 
-  const { data: documents } = await supabase
-    .from('case_documents')
-    .select('*')
-    .eq('immigrant_id', immigrantData?.id)
-    .order('uploaded_at', { ascending: false })
-    .limit(5)
+  const { data: documents } = immigrantData
+    ? await supabase
+        .from('case_documents')
+        .select('*')
+        .eq('immigrant_id', immigrantData.id)
+        .order('uploaded_at', { ascending: false })
+        .limit(5)
+    : { data: [] as any[] }
 
   return (
     <DashboardLayout
