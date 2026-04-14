@@ -18,6 +18,7 @@ Future work sessions should review and update this file as tasks are completed o
 
 - Public homepage for `Immigration Platform - Spain`.
 - Login and signup flows for immigrants and lawyers.
+- Google OAuth onboarding flow for first-time users without a role profile.
 - Role-based dashboards with middleware protection.
 - Immigrant documents page with upload, open, and delete actions.
 - Lawyer documents page for reviewing uploaded files from assigned immigrants.

@@ -227,6 +227,8 @@ export const translations = {
         title: 'Crear cuenta',
         loginPrompt: '¿Ya tienes cuenta?',
         loginLink: 'Inicia sesión',
+        google: 'Continuar con Google',
+        orEmail: 'o crea tu cuenta con tu email',
         roles: {
           immigrant: 'Inmigrante',
           lawyer: 'Abogado',
@@ -249,6 +251,23 @@ export const translations = {
           nationality: 'Colombiana, Marroquí, etc.',
           licenseNumber: '28/12345',
           password: 'Mínimo 8 caracteres',
+        },
+      },
+      onboarding: {
+        panelTitle: 'Ya casi está',
+        panelSubtitle:
+          'Necesitamos algunos datos para crear tu espacio privado y mantener separadas las áreas de abogados e inmigrantes.',
+        title: 'Completa tu acceso',
+        subtitle:
+          'Tu cuenta de Google ya está conectada. Elige cómo usarás la plataforma para terminar la configuración.',
+        connectedWithGoogle: 'Cuenta conectada con Google',
+        emailLocked: 'Email de Google',
+        submitImmigrant: 'Entrar como inmigrante',
+        submitLawyer: 'Entrar como abogado',
+        submitting: 'Guardando acceso...',
+        errors: {
+          missingEmail:
+            'No pudimos obtener tu correo de Google. Prueba con otra cuenta o usa el registro por email.',
         },
       },
     },
@@ -716,6 +735,8 @@ export const translations = {
         title: 'Create account',
         loginPrompt: 'Already have an account?',
         loginLink: 'Log in',
+        google: 'Continue with Google',
+        orEmail: 'or create your account with email',
         roles: {
           immigrant: 'Immigrant',
           lawyer: 'Lawyer',
@@ -738,6 +759,23 @@ export const translations = {
           nationality: 'Colombian, Moroccan, etc.',
           licenseNumber: '28/12345',
           password: 'Minimum 8 characters',
+        },
+      },
+      onboarding: {
+        panelTitle: 'Almost there',
+        panelSubtitle:
+          'We need a few details to create your private workspace and keep the lawyer and immigrant areas separate.',
+        title: 'Complete your access',
+        subtitle:
+          'Your Google account is already connected. Choose how you will use the platform to finish setup.',
+        connectedWithGoogle: 'Google account connected',
+        emailLocked: 'Google email',
+        submitImmigrant: 'Continue as immigrant',
+        submitLawyer: 'Continue as lawyer',
+        submitting: 'Saving access...',
+        errors: {
+          missingEmail:
+            'We could not read your Google email. Try another account or use email signup instead.',
         },
       },
     },
@@ -1189,6 +1227,8 @@ export const translations = {
         title: 'Criar conta',
         loginPrompt: 'Já tem conta?',
         loginLink: 'Entrar',
+        google: 'Continuar com Google',
+        orEmail: 'ou crie a sua conta com email',
         roles: {
           immigrant: 'Imigrante',
           lawyer: 'Advogado',
@@ -1211,6 +1251,23 @@ export const translations = {
           nationality: 'Colombiana, Marroquina, etc.',
           licenseNumber: '28/12345',
           password: 'Mínimo 8 caracteres',
+        },
+      },
+      onboarding: {
+        panelTitle: 'Está quase',
+        panelSubtitle:
+          'Precisamos de alguns dados para criar o seu espaço privado e manter separadas as áreas de advogados e imigrantes.',
+        title: 'Complete o seu acesso',
+        subtitle:
+          'A sua conta Google já está ligada. Escolha como vai utilizar a plataforma para concluir a configuração.',
+        connectedWithGoogle: 'Conta Google ligada',
+        emailLocked: 'Email do Google',
+        submitImmigrant: 'Continuar como imigrante',
+        submitLawyer: 'Continuar como advogado',
+        submitting: 'A guardar acesso...',
+        errors: {
+          missingEmail:
+            'Não foi possível ler o seu email do Google. Tente outra conta ou use o registo por email.',
         },
       },
     },

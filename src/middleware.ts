@@ -32,48 +32,52 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
+  const isProtectedPath = pathname.startsWith('/lawyer') || pathname.startsWith('/immigrant')
+  const isAuthEntryPath = pathname.startsWith('/auth/login') || pathname.startsWith('/auth/signup')
+  const isCompleteProfilePath = pathname.startsWith('/auth/complete-profile')
 
   // If not logged in and trying to access protected routes
-  if (
-    !user &&
-    (pathname.startsWith('/lawyer') || pathname.startsWith('/immigrant'))
-  ) {
+  if (!user && (isProtectedPath || isCompleteProfilePath)) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     return NextResponse.redirect(url)
   }
 
-  // If logged in, check role-based access
-  if (user && (pathname.startsWith('/lawyer') || pathname.startsWith('/immigrant'))) {
-    const { data: profile } = await supabase
+  let profile: { role: 'lawyer' | 'immigrant' } | null = null
+
+  if (user && (isProtectedPath || isAuthEntryPath || isCompleteProfilePath)) {
+    const { data } = await supabase
       .from('profiles')
       .select('role')
       .eq('user_id', user.id)
       .single()
 
-    if (profile) {
-      const role = profile.role
-      if (pathname.startsWith('/lawyer') && role !== 'lawyer') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/immigrant/dashboard'
-        return NextResponse.redirect(url)
-      }
-      if (pathname.startsWith('/immigrant') && role !== 'immigrant') {
-        const url = request.nextUrl.clone()
-        url.pathname = '/lawyer/dashboard'
-        return NextResponse.redirect(url)
-      }
+    profile = data
+  }
+
+  if (user && !profile && (isProtectedPath || isAuthEntryPath)) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/auth/complete-profile'
+    return NextResponse.redirect(url)
+  }
+
+  // If logged in, check role-based access
+  if (user && isProtectedPath && profile) {
+    const role = profile.role
+    if (pathname.startsWith('/lawyer') && role !== 'lawyer') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/immigrant/dashboard'
+      return NextResponse.redirect(url)
+    }
+    if (pathname.startsWith('/immigrant') && role !== 'immigrant') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/lawyer/dashboard'
+      return NextResponse.redirect(url)
     }
   }
 
   // Redirect logged-in users away from auth pages
-  if (user && (pathname.startsWith('/auth/login') || pathname.startsWith('/auth/signup'))) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single()
-
+  if (user && isAuthEntryPath && profile) {
     if (profile?.role === 'lawyer') {
       const url = request.nextUrl.clone()
       url.pathname = '/lawyer/dashboard'
@@ -84,6 +88,12 @@ export async function middleware(request: NextRequest) {
       url.pathname = '/immigrant/dashboard'
       return NextResponse.redirect(url)
     }
+  }
+
+  if (user && isCompleteProfilePath && profile) {
+    const url = request.nextUrl.clone()
+    url.pathname = profile.role === 'lawyer' ? '/lawyer/dashboard' : '/immigrant/dashboard'
+    return NextResponse.redirect(url)
   }
 
   return supabaseResponse

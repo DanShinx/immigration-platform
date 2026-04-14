@@ -23,7 +23,16 @@ export async function GET(request: Request) {
         if (profile?.role === 'lawyer') {
           return NextResponse.redirect(`${origin}/lawyer/dashboard`)
         }
-        return NextResponse.redirect(`${origin}/immigrant/dashboard`)
+
+        if (profile?.role === 'immigrant') {
+          return NextResponse.redirect(`${origin}/immigrant/dashboard`)
+        }
+
+        if (next.startsWith('/auth/complete-profile')) {
+          return NextResponse.redirect(`${origin}${next}`)
+        }
+
+        return NextResponse.redirect(`${origin}/auth/complete-profile`)
       }
 
       return NextResponse.redirect(`${origin}${next}`)
