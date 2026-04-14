@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, FileText, MessageSquare, User, Globe, Calendar, Upload, Plus, Save } from 'lucide-react'
+import { documentsBucket, isAbsoluteUrl } from '@/lib/documents'
 import { caseStatusLabels, formatDate } from '@/lib/utils'
 import { useRouter } from 'next/navigation'
 
@@ -69,6 +70,21 @@ export default function ImmigrantDetailClient({ immigrant, documents, notes, law
       setNewNote('')
     }
     setSavingNote(false)
+  }
+
+  async function openDocument(fileUrl: string) {
+    if (isAbsoluteUrl(fileUrl)) {
+      window.open(fileUrl, '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    const { data, error } = await supabase.storage
+      .from(documentsBucket)
+      .createSignedUrl(fileUrl, 60 * 10)
+
+    if (!error && data?.signedUrl) {
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
+    }
   }
 
   return (
@@ -211,14 +227,13 @@ export default function ImmigrantDetailClient({ immigrant, documents, notes, law
                     <div className="font-medium text-slate-900 text-sm">{doc.file_name}</div>
                     <div className="text-xs text-slate-400">{doc.document_type} · {formatDate(doc.uploaded_at)}</div>
                   </div>
-                  <a
-                    href={doc.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => openDocument(doc.file_url)}
                     className="text-sm text-brand-600 hover:text-brand-800 font-medium transition-colors"
                   >
                     Ver
-                  </a>
+                  </button>
                 </div>
               ))}
             </div>
