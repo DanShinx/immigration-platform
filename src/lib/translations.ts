@@ -189,12 +189,25 @@ export const translations = {
         panelTitle: 'Bienvenido de vuelta',
         panelSubtitle:
           'Accede a tu panel para gestionar tu proceso de inmigración en España.',
+        rolePrompt: 'Elige cómo quieres entrar',
+        roles: {
+          immigrant: {
+            label: 'Inmigrante',
+            description: 'Consulta tu caso, elige abogado y sube documentación.',
+          },
+          lawyer: {
+            label: 'Abogado',
+            description: 'Gestiona expedientes, revisa solicitudes y controla documentación.',
+          },
+        },
         stats: [
           { value: '500+', label: 'Casos' },
           { value: '50+', label: 'Abogados' },
           { value: '98%', label: 'Satisfacción' },
         ],
         title: 'Iniciar sesión',
+        titleImmigrant: 'Entrar como inmigrante',
+        titleLawyer: 'Entrar como abogado',
         signupPrompt: '¿No tienes cuenta?',
         signupLink: 'Regístrate aquí',
         google: 'Continuar con Google',
@@ -203,6 +216,8 @@ export const translations = {
         password: 'Contraseña',
         forgotPassword: '¿Olvidaste tu contraseña?',
         submit: 'Iniciar sesión',
+        submitImmigrant: 'Entrar al portal del inmigrante',
+        submitLawyer: 'Entrar al portal del abogado',
         submitting: 'Iniciando sesión...',
         errors: {
           emailNotConfirmed:
@@ -294,11 +309,28 @@ export const translations = {
       logout: 'Cerrar sesión',
     },
     lawyerDashboard: {
+      intro:
+        'Desde aquí gestionas solicitudes, revisas documentación y controlas los expedientes asignados a tu despacho.',
       stats: [
-        { label: 'Expedientes asignados', change: 'Total de inmigrantes' },
-        { label: 'Casos pendientes', change: 'Requieren atención' },
-        { label: 'En revisión', change: 'En proceso activo' },
+        { label: 'Expedientes asignados', change: 'Inmigrantes activos' },
+        { label: 'Solicitudes pendientes', change: 'Esperan tu decisión' },
+        { label: 'Casos en revisión', change: 'Seguimiento activo' },
       ],
+      quickActionsTitle: 'Acciones del despacho',
+      quickActions: {
+        requests: {
+          title: 'Revisar solicitudes',
+          body: 'Acepta o rechaza nuevas peticiones de inmigrantes.',
+        },
+        documents: {
+          title: 'Revisar documentos',
+          body: 'Comprueba los archivos recibidos y prepara la revisión legal.',
+        },
+        cases: {
+          title: 'Gestionar expedientes',
+          body: 'Entra en cada caso, actualiza estados y añade notas privadas.',
+        },
+      },
       recentCases: 'Expedientes recientes',
       viewAll: 'Ver todos',
       emptyTitle: 'No tienes expedientes asignados aún',
@@ -336,6 +368,21 @@ export const translations = {
     },
     immigrantDashboard: {
       intro: 'Aquí puedes ver el estado de tu proceso de inmigración en España.',
+      quickActionsTitle: 'Tus siguientes pasos',
+      quickActions: {
+        chooseLawyer: {
+          title: 'Elegir abogado',
+          body: 'Busca profesionales registrados y envía tu solicitud.',
+        },
+        documents: {
+          title: 'Subir documentos',
+          body: 'Añade pasaporte, NIE y archivos clave para tu expediente.',
+        },
+        case: {
+          title: 'Revisar mi caso',
+          body: 'Consulta el detalle del expediente y el progreso de tu proceso.',
+        },
+      },
       caseTitle: 'Estado de tu expediente',
       caseNumber: 'Expediente',
       rejectedTitle: 'Expediente rechazado',
@@ -761,12 +808,25 @@ export const translations = {
         panelTitle: 'Welcome back',
         panelSubtitle:
           'Access your dashboard to manage your immigration process in Spain.',
+        rolePrompt: 'Choose how you want to log in',
+        roles: {
+          immigrant: {
+            label: 'Immigrant',
+            description: 'Check your case, choose a lawyer, and upload documents.',
+          },
+          lawyer: {
+            label: 'Lawyer',
+            description: 'Manage files, review requests, and control documentation.',
+          },
+        },
         stats: [
           { value: '500+', label: 'Cases' },
           { value: '50+', label: 'Lawyers' },
           { value: '98%', label: 'Satisfaction' },
         ],
         title: 'Log in',
+        titleImmigrant: 'Log in as immigrant',
+        titleLawyer: 'Log in as lawyer',
         signupPrompt: "Don't have an account?",
         signupLink: 'Sign up here',
         google: 'Continue with Google',
@@ -775,6 +835,8 @@ export const translations = {
         password: 'Password',
         forgotPassword: 'Forgot your password?',
         submit: 'Log in',
+        submitImmigrant: 'Enter immigrant portal',
+        submitLawyer: 'Enter lawyer portal',
         submitting: 'Logging in...',
         errors: {
           emailNotConfirmed:
@@ -866,11 +928,28 @@ export const translations = {
       logout: 'Log out',
     },
     lawyerDashboard: {
+      intro:
+        'From here you manage requests, review documentation, and control the files assigned to your practice.',
       stats: [
-        { label: 'Assigned files', change: 'Total immigrants' },
-        { label: 'Pending cases', change: 'Need attention' },
-        { label: 'In review', change: 'Active process' },
+        { label: 'Assigned files', change: 'Active immigrants' },
+        { label: 'Pending requests', change: 'Waiting for your decision' },
+        { label: 'Cases in review', change: 'Active follow-up' },
       ],
+      quickActionsTitle: 'Practice actions',
+      quickActions: {
+        requests: {
+          title: 'Review requests',
+          body: 'Accept or reject new requests from immigrants.',
+        },
+        documents: {
+          title: 'Review documents',
+          body: 'Check received files and prepare the legal review.',
+        },
+        cases: {
+          title: 'Manage files',
+          body: 'Open each case, update statuses, and add private notes.',
+        },
+      },
       recentCases: 'Recent files',
       viewAll: 'View all',
       emptyTitle: 'You do not have assigned files yet',
@@ -908,6 +987,21 @@ export const translations = {
     },
     immigrantDashboard: {
       intro: 'Here you can see the status of your immigration process in Spain.',
+      quickActionsTitle: 'Your next steps',
+      quickActions: {
+        chooseLawyer: {
+          title: 'Choose lawyer',
+          body: 'Browse registered professionals and send your request.',
+        },
+        documents: {
+          title: 'Upload documents',
+          body: 'Add passport, NIE, and key files for your case.',
+        },
+        case: {
+          title: 'Review my case',
+          body: 'Check your file details and the progress of your process.',
+        },
+      },
       caseTitle: 'Your file status',
       caseNumber: 'File',
       rejectedTitle: 'File rejected',
@@ -1317,12 +1411,25 @@ export const translations = {
         panelTitle: 'Bem-vindo de volta',
         panelSubtitle:
           'Entre no seu painel para gerir o seu processo de imigração na Espanha.',
+        rolePrompt: 'Escolha como quer entrar',
+        roles: {
+          immigrant: {
+            label: 'Imigrante',
+            description: 'Consulte o seu caso, escolha advogado e envie documentos.',
+          },
+          lawyer: {
+            label: 'Advogado',
+            description: 'Gira processos, reveja pedidos e controle a documentação.',
+          },
+        },
         stats: [
           { value: '500+', label: 'Casos' },
           { value: '50+', label: 'Advogados' },
           { value: '98%', label: 'Satisfação' },
         ],
         title: 'Entrar',
+        titleImmigrant: 'Entrar como imigrante',
+        titleLawyer: 'Entrar como advogado',
         signupPrompt: 'Ainda não tem conta?',
         signupLink: 'Crie a sua conta',
         google: 'Continuar com Google',
@@ -1331,6 +1438,8 @@ export const translations = {
         password: 'Senha',
         forgotPassword: 'Esqueceu a sua senha?',
         submit: 'Entrar',
+        submitImmigrant: 'Entrar no portal do imigrante',
+        submitLawyer: 'Entrar no portal do advogado',
         submitting: 'A iniciar sessão...',
         errors: {
           emailNotConfirmed:
@@ -1422,11 +1531,28 @@ export const translations = {
       logout: 'Sair',
     },
     lawyerDashboard: {
+      intro:
+        'A partir daqui gere pedidos, revê documentação e controla os processos atribuídos ao seu escritório.',
       stats: [
-        { label: 'Processos atribuídos', change: 'Total de imigrantes' },
-        { label: 'Casos pendentes', change: 'Precisam de atenção' },
-        { label: 'Em análise', change: 'Processo ativo' },
+        { label: 'Processos atribuídos', change: 'Imigrantes ativos' },
+        { label: 'Pedidos pendentes', change: 'À espera da sua decisão' },
+        { label: 'Casos em análise', change: 'Acompanhamento ativo' },
       ],
+      quickActionsTitle: 'Ações do escritório',
+      quickActions: {
+        requests: {
+          title: 'Rever pedidos',
+          body: 'Aceite ou rejeite novos pedidos de imigrantes.',
+        },
+        documents: {
+          title: 'Rever documentos',
+          body: 'Verifique os ficheiros recebidos e prepare a revisão jurídica.',
+        },
+        cases: {
+          title: 'Gerir processos',
+          body: 'Entre em cada caso, atualize estados e adicione notas privadas.',
+        },
+      },
       recentCases: 'Processos recentes',
       viewAll: 'Ver todos',
       emptyTitle: 'Ainda não tem processos atribuídos',
@@ -1464,6 +1590,21 @@ export const translations = {
     },
     immigrantDashboard: {
       intro: 'Aqui pode ver o estado do seu processo de imigração na Espanha.',
+      quickActionsTitle: 'Os seus próximos passos',
+      quickActions: {
+        chooseLawyer: {
+          title: 'Escolher advogado',
+          body: 'Procure profissionais registados e envie o seu pedido.',
+        },
+        documents: {
+          title: 'Enviar documentos',
+          body: 'Adicione passaporte, NIE e ficheiros-chave do seu processo.',
+        },
+        case: {
+          title: 'Rever o meu caso',
+          body: 'Consulte os detalhes do processo e o avanço do seu caso.',
+        },
+      },
       caseTitle: 'Estado do seu processo',
       caseNumber: 'Processo',
       rejectedTitle: 'Processo rejeitado',

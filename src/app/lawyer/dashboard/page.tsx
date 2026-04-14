@@ -24,10 +24,10 @@ export default async function LawyerDashboardPage() {
     .eq('assigned_lawyer_id', user.id)
 
   const { count: pendingCases } = await supabase
-    .from('immigrants')
+    .from('lawyer_assignment_requests')
     .select('*', { count: 'exact', head: true })
-    .eq('assigned_lawyer_id', user.id)
-    .eq('case_status', 'pending')
+    .eq('lawyer_user_id', user.id)
+    .eq('status', 'pending')
 
   const { count: inReviewCases } = await supabase
     .from('immigrants')

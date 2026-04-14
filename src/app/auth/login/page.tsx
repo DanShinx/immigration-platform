@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { useI18n } from '@/components/LanguageProvider'
 import { createClient } from '@/lib/supabase/client'
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { Eye, EyeOff, ArrowLeft, Shield, Users } from 'lucide-react'
+import type { UserRole } from '@/types'
 
 function GoogleIcon() {
   return (
@@ -19,7 +20,10 @@ function GoogleIcon() {
   )
 }
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams()
+  const defaultRole = (searchParams.get('role') as UserRole) || 'immigrant'
+  const [role, setRole] = useState<UserRole>(defaultRole)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -30,13 +34,15 @@ export default function LoginPage() {
   const supabase = createClient()
   const { messages } = useI18n()
   const t = messages.auth.login
+  const selectedRoleCopy = role === 'lawyer' ? t.roles.lawyer : t.roles.immigrant
 
   async function handleGoogleLogin() {
     setGoogleLoading(true)
+    const next = encodeURIComponent(`/auth/complete-profile?role=${role}`)
     await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${window.location.origin}/auth/callback?next=${next}`,
       },
     })
     setGoogleLoading(false)
@@ -105,7 +111,7 @@ export default function LoginPage() {
             {t.panelTitle}
           </h2>
           <p className="text-brand-200 text-lg leading-relaxed">
-            {t.panelSubtitle}
+            {selectedRoleCopy.description}
           </p>
         </div>
 
@@ -140,10 +146,48 @@ export default function LoginPage() {
             {messages.shared.actions.backHome}
           </Link>
 
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">{t.title}</h1>
+          <div className="mb-6">
+            <div className="text-sm font-medium text-slate-500 mb-3">{t.rolePrompt}</div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRole('immigrant')}
+                className={`flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 text-left transition-all ${
+                  role === 'immigrant'
+                    ? 'border-brand-600 bg-brand-50'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <Users className={`w-5 h-5 ${role === 'immigrant' ? 'text-brand-700' : 'text-slate-400'}`} />
+                <span className={`text-sm font-semibold ${role === 'immigrant' ? 'text-brand-700' : 'text-slate-700'}`}>
+                  {t.roles.immigrant.label}
+                </span>
+                <span className="text-xs text-slate-500 text-center">{t.roles.immigrant.description}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole('lawyer')}
+                className={`flex flex-col items-center gap-2 rounded-2xl border-2 px-4 py-4 text-left transition-all ${
+                  role === 'lawyer'
+                    ? 'border-brand-600 bg-brand-50'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <Shield className={`w-5 h-5 ${role === 'lawyer' ? 'text-brand-700' : 'text-slate-400'}`} />
+                <span className={`text-sm font-semibold ${role === 'lawyer' ? 'text-brand-700' : 'text-slate-700'}`}>
+                  {t.roles.lawyer.label}
+                </span>
+                <span className="text-xs text-slate-500 text-center">{t.roles.lawyer.description}</span>
+              </button>
+            </div>
+          </div>
+
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">
+            {role === 'lawyer' ? t.titleLawyer : t.titleImmigrant}
+          </h1>
           <p className="text-slate-500 mb-8">
             {t.signupPrompt}{' '}
-            <Link href="/auth/signup" className="text-brand-700 font-medium hover:underline">
+            <Link href={`/auth/signup?role=${role}`} className="text-brand-700 font-medium hover:underline">
               {t.signupLink}
             </Link>
           </p>
@@ -234,12 +278,20 @@ export default function LoginPage() {
                   {t.submitting}
                 </>
               ) : (
-                t.submit
+                role === 'lawyer' ? t.submitLawyer : t.submitImmigrant
               )}
             </button>
           </form>
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-700" /></div>}>
+      <LoginForm />
+    </Suspense>
   )
 }

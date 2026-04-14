@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Users, Clock, FileSearch, TrendingUp, ArrowRight } from 'lucide-react'
+import { Users, Clock, FileSearch, TrendingUp, ArrowRight, Inbox, FolderKanban } from 'lucide-react'
 import { useI18n } from '@/components/LanguageProvider'
 import { formatDate, getCaseStatusMeta } from '@/lib/utils'
 
@@ -52,12 +52,7 @@ export default function LawyerDashboardClient({ stats, recentImmigrants, lawyerN
           {greeting}, {lawyerName.split(' ')[0]} 👋
         </h1>
         <p className="text-slate-500 mt-1">
-          {new Date().toLocaleDateString(locale === 'es' ? 'es-ES' : locale === 'en' ? 'en-US' : 'pt-PT', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}
+          {messages.lawyerDashboard.intro}
         </p>
       </div>
 
@@ -75,6 +70,46 @@ export default function LawyerDashboardClient({ stats, recentImmigrants, lawyerN
             <div className="text-xs text-slate-400 mt-0.5">{stat.change}</div>
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-100 p-6">
+        <h2 className="font-semibold text-slate-900 mb-4">{messages.lawyerDashboard.quickActionsTitle}</h2>
+        <div className="grid md:grid-cols-3 gap-4">
+          {[
+            {
+              href: '/lawyer/requests',
+              icon: Inbox,
+              title: messages.lawyerDashboard.quickActions.requests.title,
+              body: messages.lawyerDashboard.quickActions.requests.body,
+            },
+            {
+              href: '/lawyer/documents',
+              icon: FileSearch,
+              title: messages.lawyerDashboard.quickActions.documents.title,
+              body: messages.lawyerDashboard.quickActions.documents.body,
+            },
+            {
+              href: '/lawyer/immigrants',
+              icon: FolderKanban,
+              title: messages.lawyerDashboard.quickActions.cases.title,
+              body: messages.lawyerDashboard.quickActions.cases.body,
+            },
+          ].map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:border-brand-300 hover:bg-brand-50 transition-colors"
+            >
+              <action.icon className="w-5 h-5 text-brand-600 mb-3" />
+              <div className="font-semibold text-slate-900">{action.title}</div>
+              <div className="text-sm text-slate-500 mt-1">{action.body}</div>
+              <div className="inline-flex items-center gap-1 mt-3 text-sm text-brand-600 font-medium">
+                {messages.shared.actions.view}
+                <ArrowRight className="w-3.5 h-3.5" />
+              </div>
+            </Link>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-100">

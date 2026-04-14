@@ -1,6 +1,6 @@
 'use client'
 
-import { FileText, User, Shield, AlertCircle, CheckCircle, Clock, Upload } from 'lucide-react'
+import { FileText, User, Shield, AlertCircle, CheckCircle, Clock, Upload, Briefcase, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { useI18n } from '@/components/LanguageProvider'
 import { formatDate, getCaseStatusMeta } from '@/lib/utils'
@@ -8,6 +8,7 @@ import { formatDate, getCaseStatusMeta } from '@/lib/utils'
 interface Props {
   immigrant: any
   lawyer: any
+  pendingRequest: any
   recentDocuments: any[]
   userName: string
 }
@@ -63,7 +64,7 @@ function StatusTimeline({ status, labels }: { status: string; labels: { register
   )
 }
 
-export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocuments, userName }: Props) {
+export default function ImmigrantDashboardClient({ immigrant, lawyer, pendingRequest, recentDocuments, userName }: Props) {
   const { messages, locale } = useI18n()
   const hour = new Date().getHours()
   const greeting =
@@ -128,6 +129,65 @@ export default function ImmigrantDashboardClient({ immigrant, lawyer, recentDocu
           <p className="text-sm text-brand-600 mt-1">{messages.immigrantDashboard.setupBody}</p>
         </div>
       )}
+
+      <div className="grid md:grid-cols-3 gap-5">
+        <div className="bg-white rounded-2xl border border-slate-100 p-6">
+          <div className="text-sm text-slate-500">{messages.immigrantDashboard.lawyerCard}</div>
+          <div className="text-lg font-semibold text-slate-900 mt-2">
+            {lawyer ? lawyer.full_name : messages.immigrantDashboard.noLawyer}
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 p-6">
+          <div className="text-sm text-slate-500">{messages.immigrantLawyers.pendingRequest}</div>
+          <div className="text-lg font-semibold text-slate-900 mt-2">
+            {pendingRequest?.lawyer?.full_name || messages.immigrantLawyers.noPendingRequest}
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl border border-slate-100 p-6">
+          <div className="text-sm text-slate-500">{messages.immigrantDashboard.documentsCard}</div>
+          <div className="text-3xl font-bold text-slate-900 mt-2">{recentDocuments.length}</div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-100 p-6">
+        <h3 className="font-semibold text-slate-900 mb-4">{messages.immigrantDashboard.quickActionsTitle}</h3>
+        <div className="grid md:grid-cols-3 gap-4">
+          {[
+            {
+              href: '/immigrant/lawyers',
+              icon: Briefcase,
+              title: messages.immigrantDashboard.quickActions.chooseLawyer.title,
+              body: messages.immigrantDashboard.quickActions.chooseLawyer.body,
+            },
+            {
+              href: '/immigrant/documents',
+              icon: Upload,
+              title: messages.immigrantDashboard.quickActions.documents.title,
+              body: messages.immigrantDashboard.quickActions.documents.body,
+            },
+            {
+              href: '/immigrant/my-case',
+              icon: FileText,
+              title: messages.immigrantDashboard.quickActions.case.title,
+              body: messages.immigrantDashboard.quickActions.case.body,
+            },
+          ].map((action) => (
+            <Link
+              key={action.href}
+              href={action.href}
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:border-brand-300 hover:bg-brand-50 transition-colors"
+            >
+              <action.icon className="w-5 h-5 text-brand-600 mb-3" />
+              <div className="font-semibold text-slate-900">{action.title}</div>
+              <div className="text-sm text-slate-500 mt-1">{action.body}</div>
+              <div className="inline-flex items-center gap-1 mt-3 text-sm text-brand-600 font-medium">
+                {messages.shared.actions.view}
+                <ArrowRight className="w-3.5 h-3.5" />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
 
       <div className="grid md:grid-cols-2 gap-6">
         <div className="bg-white rounded-2xl border border-slate-100 p-6">
