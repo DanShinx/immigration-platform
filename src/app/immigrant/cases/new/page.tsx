@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import NewCaseClient from './NewCaseClient'
 import { createClient } from '@/lib/supabase/server'
+import { ensureImmigrantProfile } from '@/lib/immigrants'
 import type { CaseTrackCode } from '@/types'
 
 const allowedTracks: CaseTrackCode[] = ['nomad_holder', 'nomad_family', 'nomad_renewal']
@@ -27,11 +28,10 @@ export default async function NewCasePage({
 
   if (!profile || profile.role !== 'immigrant') redirect('/lawyer/dashboard')
 
-  const { data: immigrant } = await supabase
-    .from('immigrants')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
+  const immigrant = await ensureImmigrantProfile(supabase, user, {
+    full_name: profile.full_name,
+    email: profile.email,
+  })
 
   if (!immigrant) redirect('/immigrant/dashboard')
 
