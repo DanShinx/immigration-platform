@@ -72,6 +72,13 @@ export default function ImmigrantDashboardClient({
         <div className="rounded-3xl border border-brand-200 bg-brand-50 p-6">
           <h2 className="font-semibold text-brand-900">{copy.immigrantDashboard.noCases}</h2>
           <p className="text-sm text-brand-700 mt-2">{copy.immigrantDashboard.noCasesBody}</p>
+          <Link
+            href="/immigrant/cases/new"
+            className="inline-flex items-center gap-2 rounded-2xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 mt-5"
+          >
+            <PlusCircle className="w-4 h-4" />
+            {copy.immigrantDashboard.startNewCase}
+          </Link>
         </div>
       )}
 
@@ -169,7 +176,7 @@ export default function ImmigrantDashboardClient({
         <div className="rounded-3xl border border-slate-200 bg-white p-6">
           <div className="flex items-center gap-2">
             <Shield className="w-4 h-4 text-brand-600" />
-            <h2 className="font-semibold text-slate-900">Recent documents</h2>
+            <h2 className="font-semibold text-slate-900">{copy.immigrantDashboard.documents}</h2>
           </div>
           {recentDocuments.length === 0 ? (
             <p className="text-sm text-slate-500 mt-5">{copy.caseDetail.noDocuments}</p>

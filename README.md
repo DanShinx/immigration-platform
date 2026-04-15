@@ -1,305 +1,316 @@
-# Immigration Platform — Spain
+# Immigration Platform Spain
 
-A bilingual (ES / EN / PT) case management platform connecting immigrants with specialized immigration lawyers in Spain. Built with Next.js 14, Supabase, and Tailwind CSS.
+Multi-language immigration case platform for Spain, built with Next.js 14, Supabase, and Tailwind CSS. The product is now centered on `cases`, not a single immigrant-level workflow.
 
----
+## Stack
 
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 14 (App Router) |
-| Database & Auth | Supabase (PostgreSQL + Auth) |
-| Storage | Supabase Storage |
-| Styling | Tailwind CSS |
-| Language | TypeScript |
-
----
+- Next.js 14 App Router
+- TypeScript
+- Supabase Auth, Postgres, and Storage
+- Tailwind CSS
 
 ## Local Setup
 
-### 1. Prerequisites
-
-- Node.js 18+
-- A Supabase project (free tier works)
-
-### 2. Install dependencies
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-### 3. Environment variables
-
-Create `.env.local` in the project root:
+2. Create `.env.local`:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://<your-project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
 
-# Optional — defaults to "case-documents" if not set
+# Optional; defaults to "case-documents"
 NEXT_PUBLIC_SUPABASE_DOCUMENTS_BUCKET=case-documents
 ```
 
-### 4. Apply database migrations
-
-Migrations are tracked in `supabase/migrations/`. Apply them in order via the Supabase dashboard SQL editor or the Supabase CLI:
+3. Apply migrations:
 
 ```bash
 supabase db push
 ```
 
-Migrations applied so far:
+Current migrations:
 
-| Version | Name |
-|---|---|
-| 20260414154922 | create_immigration_platform_schema |
-| 20260414163013 | auto_create_profile_on_signup |
-| 20260414163900 | enable_google_oauth |
-| (via MCP) | add_lawyer_assignment_requests_and_fix_rls |
-| (via MCP) | create_case_documents_storage_bucket |
+- `20260414_add_lawyer_assignment_requests.sql`
+- `20260415_add_multi_case_nomad_model.sql`
+- `20260415_add_admin_cases_rls.sql`
 
-### 5. Run the dev server
+4. Start the app:
 
 ```bash
 npm run dev
 ```
 
----
+## Current Product Model
 
-## Database Schema
+The live product truth is the multi-case model introduced for the Nomad release.
 
-### `profiles`
-Central user record created on signup (trigger: `auto_create_profile_on_signup`).
+- Public site shows all official UGE immigration categories.
+- Only `Nomad` is fully detailed in the current release.
+- Nomad is split into 3 separate tracks:
+  - `nomad_holder`
+  - `nomad_family`
+  - `nomad_renewal`
+- Immigrants can open multiple cases over time.
+- Each case has its own:
+  - stage
+  - outcome
+  - assigned lawyer
+  - documents
+  - payments
+  - events/timeline
 
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | PK |
-| user_id | uuid | FK → auth.users |
-| role | text | `'lawyer'` or `'immigrant'` |
-| full_name | text | |
-| email | text | |
-| phone | text | nullable |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
-
-### `immigrants`
-Created when a user completes onboarding as an immigrant.
-
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | PK |
-| user_id | uuid | FK → auth.users (unique) |
-| full_name | text | |
-| email | text | |
-| nationality | text | |
-| passport_number | text | nullable |
-| date_of_birth | date | nullable |
-| address_in_spain | text | nullable |
-| assigned_lawyer_id | uuid | nullable, FK → auth.users |
-| case_status | text | `pending` / `in_review` / `documents_required` / `submitted` / `approved` / `rejected` |
-| avatar_url | text | nullable |
-| created_at | timestamptz | |
-
-### `lawyers`
-Created when a user completes onboarding as a lawyer.
-
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | PK |
-| user_id | uuid | FK → auth.users (unique) |
-| full_name | text | |
-| email | text | |
-| license_number | text | |
-| specialization | text | nullable |
-| bar_association | text | nullable |
-| bio | text | nullable |
-| avatar_url | text | nullable |
-| is_active | boolean | controls visibility to immigrants |
-| created_at | timestamptz | |
-
-### `case_documents`
-Documents uploaded by immigrants, stored in Supabase Storage.
-
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | PK |
-| immigrant_id | uuid | FK → immigrants.id |
-| document_type | text | see `documentTypeValues` in `src/lib/documents.ts` |
-| file_name | text | original filename |
-| file_url | text | storage path (`{immigrantId}/{timestamp}-{filename}`) |
-| notes | text | nullable |
-| uploaded_by | uuid | nullable, FK → auth.users |
-| uploaded_at | timestamptz | |
-
-### `case_notes`
-Private notes added by lawyers on each case.
-
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | PK |
-| immigrant_id | uuid | FK → immigrants.id |
-| lawyer_id | uuid | FK → auth.users |
-| content | text | |
-| is_private | boolean | always `true` for now |
-| created_at | timestamptz | |
-
-### `lawyer_assignment_requests`
-Immigrant → lawyer assignment requests with status tracking.
-
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | PK |
-| immigrant_id | uuid | FK → immigrants.id |
-| lawyer_user_id | uuid | FK → auth.users |
-| status | text | `pending` / `accepted` / `rejected` / `withdrawn` |
-| message | text | nullable |
-| created_at | timestamptz | |
-| responded_at | timestamptz | nullable |
-
-**Unique constraint:** only one `pending` request per immigrant at a time.
-
-**Trigger `on_request_accepted`:** when a request is accepted, automatically rejects all other pending requests for the same immigrant and sets `immigrants.assigned_lawyer_id`.
-
----
-
-## Storage Buckets
-
-### `case-documents`
-Private bucket (not publicly accessible). Max file size: 50 MB.
-
-**Allowed MIME types:** `application/pdf`, `image/png`, `image/jpeg`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
-
-**Path pattern:** `{immigrantId}/{timestamp}-{sanitizedFilename}`
-
-**Storage RLS policies:**
-
-| Policy | Who | What |
-|---|---|---|
-| immigrants_can_upload_own | Authenticated immigrant | INSERT into own folder |
-| immigrants_can_read_own | Authenticated immigrant | SELECT from own folder |
-| immigrants_can_delete_own | Authenticated immigrant | DELETE from own folder |
-| lawyers_can_read_assigned | Assigned lawyer | SELECT from assigned immigrants' folders |
-
----
-
-## Row Level Security (RLS)
-
-All tables have RLS enabled. Policies by table:
+## Core Tables
 
 ### `profiles`
-- `profiles_select_own` — user reads own row
-- `profiles_insert_own` — user inserts own row
-- `profiles_update_own` — user updates own row
+
+Shared account record created per authenticated user.
+
+- `user_id`
+- `role`
+- `full_name`
+- `email`
+- `phone`
 
 ### `immigrants`
-- `immigrants_select_own` — immigrant reads own row
-- `immigrants_insert_own` — immigrant inserts own row
-- `immigrants_update_own` — immigrant updates own row
-- `immigrants_lawyer_select` — assigned lawyer reads
-- `immigrants_lawyer_update` — assigned lawyer updates case_status
-- `immigrants_lawyer_request_select` — lawyer reads immigrants who sent them a request
-- `immigrants_lawyer_assign_update` — lawyer can set assigned_lawyer_id when accepting a request
+
+Person profile for immigrant users.
+
+- `user_id`
+- `full_name`
+- `email`
+- `nationality`
+- `passport_number`
+- `date_of_birth`
+- `address_in_spain`
+- `avatar_url`
+
+Compatibility note:
+
+- `immigrants.case_status`
+- `immigrants.assigned_lawyer_id`
+
+still exist for legacy compatibility, but they are no longer the canonical workflow source of truth.
 
 ### `lawyers`
-- `lawyers_select_own` — lawyer reads own row
-- `lawyers_insert_own` — lawyer inserts own row
-- `lawyers_update_own` — lawyer updates own row
-- `lawyers_visible_to_assigned_immigrants` — assigned immigrant reads lawyer details
-- `lawyers_visible_to_all_authenticated` — any authenticated user browses active lawyers
+
+Professional profile for lawyer users.
+
+- `user_id`
+- `full_name`
+- `email`
+- `license_number`
+- `specialization`
+- `bar_association`
+- `bio`
+- `is_active`
+- `approval_status`
+
+### `cases`
+
+Primary workflow entity.
+
+- `immigrant_id`
+- `category_code`
+- `track_code`
+- `title`
+- `summary`
+- `stage`
+- `outcome`
+- `assigned_lawyer_user_id`
+- `source_case_id`
+- `linked_primary_case_id`
+- `metadata`
+
+Canonical workflow fields now live here:
+
+- case stage
+- case outcome
+- assigned lawyer
+- linked-case relationships
 
 ### `case_documents`
-- `documents_immigrant_own` — immigrant full access to own documents
-- `documents_lawyer_assigned` — assigned lawyer can read
+
+Documents are now case-scoped.
+
+- `immigrant_id`
+- `case_id`
+- `document_type`
+- `file_name`
+- `file_url`
+- `notes`
+- `uploaded_by`
+- `uploaded_at`
+
+Storage path now uses the case context in the UI upload flow.
+
+### `case_payments`
+
+Manual payment milestones per case.
+
+- `case_id`
+- `milestone_type`
+- `status`
+- `label`
+- `amount_eur`
+- `created_at`
+
+### `case_events`
+
+Timeline / audit-style case history.
+
+- `case_id`
+- `actor_user_id`
+- `event_type`
+- `title`
+- `description`
+- `created_at`
 
 ### `case_notes`
-- `notes_lawyer_own` — lawyer full access to own notes
+
+Private lawyer notes, now also scoped to `case_id`.
 
 ### `lawyer_assignment_requests`
-- `lar_immigrant_select/insert/update` — immigrant manages own requests
-- `lar_lawyer_select/update` — lawyer views and responds to requests addressed to them
 
----
+Lawyer requests are now case-scoped.
 
-## Application Routes
+- `immigrant_id`
+- `case_id`
+- `lawyer_user_id`
+- `status`
+- `message`
+
+Important change:
+
+- the uniqueness rule is now one pending request per case, not one pending request per immigrant
+
+## Storage
+
+Bucket: `case-documents`
+
+- private bucket
+- default max file size: 50 MB
+- allowed types include PDF, PNG, JPG, DOC, DOCX
+
+The product upload flow now stores files against the selected case and writes `case_documents.case_id`.
+
+## RLS Summary
+
+RLS is enabled across the platform.
+
+Key multi-case rules:
+
+- immigrants can only read and write their own cases and case-linked records
+- lawyers can only access cases assigned to them
+- admin policies now exist for case-level oversight across:
+  - `cases`
+  - `case_payments`
+  - `case_events`
+  - `case_documents`
+  - `case_notes`
+  - `lawyer_assignment_requests`
+
+See:
+
+- `supabase/migrations/20260415_add_multi_case_nomad_model.sql`
+- `supabase/migrations/20260415_add_admin_cases_rls.sql`
+
+## Routes
 
 ### Public
-| Route | Description |
-|---|---|
-| `/` | Marketing homepage |
-| `/auth/login` | Login (email + Google OAuth) |
-| `/auth/signup` | Signup |
-| `/auth/callback` | OAuth callback |
-| `/auth/complete-profile` | First-time Google users choose role |
 
-### Immigrant portal (`/immigrant/*`)
-| Route | Description |
-|---|---|
-| `/immigrant/dashboard` | Overview, recent docs, lawyer, case status |
-| `/immigrant/lawyers` | Browse and request lawyers |
-| `/immigrant/documents` | Upload, view, delete documents |
-| `/immigrant/my-case` | Full case detail and timeline |
-| `/immigrant/settings` | Edit personal profile |
+- `/`
+- `/auth/login`
+- `/auth/signup`
+- `/auth/callback`
+- `/auth/complete-profile`
+- `/categories/nomad`
 
-### Lawyer portal (`/lawyer/*`)
-| Route | Description |
-|---|---|
-| `/lawyer/dashboard` | Overview, stats, quick actions |
-| `/lawyer/immigrants` | List of assigned immigrants |
-| `/lawyer/immigrants/[id]` | Immigrant detail: documents, notes, status |
-| `/lawyer/requests` | Accept or reject incoming requests |
-| `/lawyer/documents` | All documents from assigned immigrants |
-| `/lawyer/settings` | Edit professional profile |
+### Immigrant
 
----
+Canonical routes:
 
-## Middleware
+- `/immigrant/dashboard`
+- `/immigrant/cases`
+- `/immigrant/cases/new`
+- `/immigrant/cases/[id]`
+- `/immigrant/lawyers`
+- `/immigrant/documents`
+- `/immigrant/settings`
 
-`src/middleware.ts` runs on every non-static request and enforces:
-- Unauthenticated users → `/auth/login`
-- Authenticated users without a profile → `/auth/complete-profile`
-- Role mismatch (e.g. immigrant visiting `/lawyer/*`) → correct dashboard
-- Authenticated users visiting `/auth/login` or `/auth/signup` → correct dashboard
+Compatibility route:
 
----
+- `/immigrant/my-case` redirects to the newest active case or the case index
+
+### Lawyer
+
+Canonical routes:
+
+- `/lawyer/dashboard`
+- `/lawyer/cases`
+- `/lawyer/cases/[id]`
+- `/lawyer/requests`
+- `/lawyer/documents`
+- `/lawyer/settings`
+
+Compatibility route:
+
+- `/lawyer/immigrants` redirects to `/lawyer/cases`
+
+### Admin
+
+- `/admin/dashboard`
+- `/admin/cases`
+- `/admin/cases/[id]`
+- `/admin/immigrants`
+- `/admin/lawyers`
+- `/admin/flags`
+
+Admin workflow note:
+
+- case operations should happen from `/admin/cases`
+- `/admin/immigrants` is now a directory/context view, not the canonical workflow control surface
+
+## Nomad Release Scope
+
+Current detailed category:
+
+- Nomad
+
+Current Nomad tracks:
+
+- Holder
+- Family
+- Renewal
+
+Official source material used for the product copy and structure:
+
+- [UGE authorizations](https://www.inclusion.gob.es/en/web/unidadgrandesempresas/autorizaciones-y-requisitos)
+- [Nomad holder requirements](https://www.inclusion.gob.es/documents/d/unidadgrandesempresas/informacion-documentacion-pagina-web-titular-v2)
+- [Nomad family requirements](https://www.inclusion.gob.es/documents/d/unidadgrandesempresas/informacion-documentacion-pagina-web-familiares-v2)
+- [Teleworker FAQ](https://www.inclusion.gob.es/en/web/unidadgrandesempresas/teletrabajadores)
 
 ## Internationalization
 
-Translations live in `src/lib/translations.ts`. Supported locales:
+Supported locales:
 
-| Code | Language |
-|---|---|
-| `es` | Spanish (default) |
-| `en` | English |
-| `pt` | Portuguese |
+- `es`
+- `en`
+- `pt`
 
-The active locale is stored in `localStorage` (`immigration-platform-locale`) and provided to all client components via `LanguageProvider`.
+Translations live in `src/lib/translations.ts`, and case-category content lives in `src/lib/case-content.ts`.
 
----
-
-## Deployment
-
-The project is a standard Next.js app and deploys on any Node.js-compatible host.
-
-### Vercel (recommended)
-
-1. Connect the GitHub repo to a Vercel project.
-2. Set the environment variables (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`) in the Vercel dashboard under **Settings → Environment Variables**.
-3. Vercel will detect Next.js and build automatically on every push to `main`.
-
-### Build locally
-
-```bash
-npm run build
-npm run start
-```
-
----
-
-## Linting
+## Quality Checks
 
 ```bash
 npm run lint
+npm run build
 ```
 
-Config: `.eslintrc.json` extends `next/core-web-vitals`. No interactive setup prompt.
+## Important Transition Notes
+
+Some legacy fields and screens still exist for compatibility during the migration from the single-case model. When product behavior and legacy fields disagree, treat the case-level model as canonical.

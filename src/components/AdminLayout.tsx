@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   Users,
   Briefcase,
+  FolderOpen,
   Flag,
   LogOut,
   Menu,
@@ -35,6 +36,7 @@ export default function AdminLayout({ children, userEmail, userName }: AdminLayo
     { label: t.nav.dashboard, href: '/admin/dashboard', icon: LayoutDashboard },
     { label: t.nav.lawyers, href: '/admin/lawyers', icon: Briefcase },
     { label: t.nav.immigrants, href: '/admin/immigrants', icon: Users },
+    { label: t.nav.cases, href: '/admin/cases', icon: FolderOpen },
     { label: t.nav.flags, href: '/admin/flags', icon: Flag },
   ]
 

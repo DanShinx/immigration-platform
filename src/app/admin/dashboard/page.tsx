@@ -29,7 +29,7 @@ export default async function AdminDashboardPage() {
     supabase.from('lawyers').select('*', { count: 'exact', head: true }).eq('approval_status', 'pending_approval'),
     supabase.from('admin_flags').select('*', { count: 'exact', head: true }).eq('status', 'open'),
     supabase.from('lawyer_assignment_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('immigrants').select('*', { count: 'exact', head: true }).eq('case_status', 'in_review'),
+    supabase.from('cases').select('*', { count: 'exact', head: true }).eq('stage', 'lawyer_review'),
     supabase.from('admin_flags').select('*').eq('status', 'open').order('created_at', { ascending: false }).limit(5),
     supabase.from('lawyers').select('*').eq('approval_status', 'pending_approval').order('created_at', { ascending: false }).limit(5),
   ])

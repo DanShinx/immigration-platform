@@ -1,108 +1,51 @@
 'use client'
 
+import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { Search, Users } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { ArrowRight, FolderOpen, Search, Users } from 'lucide-react'
 import { useI18n } from '@/components/LanguageProvider'
-import { formatDate, getCaseStatusMeta } from '@/lib/utils'
+import { caseStageValues, getCaseStageMeta } from '@/lib/cases'
+import { formatDate } from '@/lib/utils'
 
 interface ImmigrantRow {
   id: string
-  user_id: string
   full_name: string
   email: string
   nationality: string
-  case_status: string
-  assigned_lawyer_id?: string | null
-  assignedLawyer?: { user_id: string; full_name: string } | null
   created_at: string
-}
-
-interface LawyerOption {
-  user_id: string
-  full_name: string
-  email: string
+  totalCases: number
+  latestCaseId: string | null
+  latestCaseTitle: string | null
+  latestCaseStage: string | null
 }
 
 interface Props {
   immigrants: ImmigrantRow[]
-  lawyers: LawyerOption[]
-  adminUserId: string
 }
 
-const CASE_STATUSES = ['pending', 'in_review', 'documents_required', 'submitted', 'approved', 'rejected']
-
-export default function AdminImmigrantsClient({ immigrants: initial, lawyers, adminUserId }: Props) {
-  const supabase = createClient()
+export default function AdminImmigrantsClient({ immigrants }: Props) {
   const { messages, locale } = useI18n()
   const t = messages.admin.immigrants
 
-  const [immigrants, setImmigrants] = useState(initial)
   const [search, setSearch] = useState('')
-  const [filterStatus, setFilterStatus] = useState('')
-  const [activeRow, setActiveRow] = useState<string | null>(null)
-  const [processingId, setProcessingId] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-
-  // Inline edit state
-  const [pendingStatus, setPendingStatus] = useState<Record<string, string>>({})
-  const [pendingLawyer, setPendingLawyer] = useState<Record<string, string>>({})
+  const [filterStage, setFilterStage] = useState('')
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    return immigrants.filter((imm) => {
-      const matchSearch = !q || [imm.full_name, imm.email, imm.nationality].some((v) => v?.toLowerCase().includes(q))
-      const matchStatus = !filterStatus || imm.case_status === filterStatus
-      return matchSearch && matchStatus
+    return immigrants.filter((immigrant) => {
+      const matchSearch =
+        !q ||
+        [
+          immigrant.full_name,
+          immigrant.email,
+          immigrant.nationality,
+          immigrant.latestCaseTitle || '',
+        ].some((value) => value?.toLowerCase().includes(q))
+
+      const matchStage = !filterStage || immigrant.latestCaseStage === filterStage
+      return matchSearch && matchStage
     })
-  }, [immigrants, search, filterStatus])
-
-  async function saveStatus(imm: ImmigrantRow) {
-    const newStatus = pendingStatus[imm.id]
-    if (!newStatus || newStatus === imm.case_status) { setActiveRow(null); return }
-    setProcessingId(imm.id)
-
-    const { error } = await supabase.from('immigrants').update({ case_status: newStatus }).eq('id', imm.id)
-    if (error) { setFeedback({ type: 'error', message: t.messages.error }); setProcessingId(null); return }
-
-    await supabase.from('audit_log').insert({
-      actor_user_id: adminUserId, action: 'case_status_override',
-      target_type: 'immigrant', target_id: imm.id,
-      metadata: { from: imm.case_status, to: newStatus },
-    })
-
-    setImmigrants((prev) => prev.map((i) => i.id === imm.id ? { ...i, case_status: newStatus } : i))
-    setFeedback({ type: 'success', message: t.messages.statusUpdated })
-    setActiveRow(null)
-    setProcessingId(null)
-  }
-
-  async function saveLawyer(imm: ImmigrantRow) {
-    const newLawyerUserId = pendingLawyer[imm.id]
-    if (!newLawyerUserId || newLawyerUserId === (imm.assigned_lawyer_id ?? '')) { setActiveRow(null); return }
-    setProcessingId(imm.id)
-
-    const { error } = await supabase.from('immigrants')
-      .update({ assigned_lawyer_id: newLawyerUserId || null })
-      .eq('id', imm.id)
-
-    if (error) { setFeedback({ type: 'error', message: t.messages.error }); setProcessingId(null); return }
-
-    await supabase.from('audit_log').insert({
-      actor_user_id: adminUserId, action: 'manual_lawyer_assignment',
-      target_type: 'immigrant', target_id: imm.id,
-      metadata: { from: imm.assigned_lawyer_id, to: newLawyerUserId },
-    })
-
-    const lawyer = lawyers.find((l) => l.user_id === newLawyerUserId) || null
-    setImmigrants((prev) => prev.map((i) => i.id === imm.id
-      ? { ...i, assigned_lawyer_id: newLawyerUserId || null, assignedLawyer: lawyer as any }
-      : i
-    ))
-    setFeedback({ type: 'success', message: t.messages.lawyerAssigned })
-    setActiveRow(null)
-    setProcessingId(null)
-  }
+  }, [filterStage, immigrants, search])
 
   return (
     <div className="space-y-6">
@@ -111,37 +54,47 @@ export default function AdminImmigrantsClient({ immigrants: initial, lawyers, ad
         <p className="text-slate-500 mt-1">{t.subtitle}</p>
       </div>
 
-      {feedback && (
-        <div className={`rounded-2xl border px-4 py-3 text-sm ${feedback.type === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-red-200 bg-red-50 text-red-700'}`}>
-          {feedback.message}
+      <div className="rounded-3xl border border-brand-200 bg-brand-50 p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="font-semibold text-brand-900">{t.directoryNoticeTitle}</h2>
+            <p className="text-sm text-brand-700 mt-1">{t.directoryNoticeBody}</p>
+          </div>
+          <Link
+            href="/admin/cases"
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800"
+          >
+            <FolderOpen className="w-4 h-4" />
+            {t.openCaseQueue}
+          </Link>
         </div>
-      )}
+      </div>
 
-      {/* Filters */}
       <div className="bg-white rounded-2xl border border-slate-100 p-4 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
             placeholder={t.search}
             className="w-full pl-10 pr-4 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 bg-white"
           />
         </div>
         <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
+          value={filterStage}
+          onChange={(event) => setFilterStage(event.target.value)}
           className="px-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 bg-white"
         >
-          <option value="">{t.allStatuses}</option>
-          {CASE_STATUSES.map((s) => (
-            <option key={s} value={s}>{messages.shared.caseStatuses[s as keyof typeof messages.shared.caseStatuses]}</option>
+          <option value="">{t.allStages}</option>
+          {caseStageValues.map((stage) => (
+            <option key={stage} value={stage}>
+              {getCaseStageMeta(stage, locale).label}
+            </option>
           ))}
         </select>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="py-20 text-center">
@@ -153,90 +106,81 @@ export default function AdminImmigrantsClient({ immigrants: initial, lawyers, ad
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
-                  {[t.columns.name, t.columns.nationality, t.columns.caseStatus, t.columns.lawyer, t.columns.registered, t.columns.actions].map((col) => (
-                    <th key={col} className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide whitespace-nowrap">{col}</th>
+                  {[
+                    t.columns.name,
+                    t.columns.nationality,
+                    t.columns.totalCases,
+                    t.columns.latestCase,
+                    t.columns.registered,
+                    t.columns.actions,
+                  ].map((column) => (
+                    <th
+                      key={column}
+                      className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide whitespace-nowrap"
+                    >
+                      {column}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {filtered.map((imm) => {
-                  const status = getCaseStatusMeta(imm.case_status, locale)
-                  const isEditing = activeRow === imm.id
-                  const isBusy = processingId === imm.id
+                {filtered.map((immigrant) => {
+                  const latestStage = immigrant.latestCaseStage
+                    ? getCaseStageMeta(immigrant.latestCaseStage, locale)
+                    : null
 
                   return (
-                    <tr key={imm.id} className="hover:bg-slate-50/50">
+                    <tr key={immigrant.id} className="hover:bg-slate-50/50">
                       <td className="px-6 py-4">
-                        <div className="font-medium text-slate-900">{imm.full_name}</div>
-                        <div className="text-xs text-slate-400">{imm.email}</div>
+                        <div className="font-medium text-slate-900">{immigrant.full_name}</div>
+                        <div className="text-xs text-slate-400">{immigrant.email}</div>
                       </td>
-                      <td className="px-6 py-4 text-slate-600">{imm.nationality}</td>
+                      <td className="px-6 py-4 text-slate-600">{immigrant.nationality}</td>
                       <td className="px-6 py-4">
-                        {isEditing ? (
-                          <select
-                            value={pendingStatus[imm.id] ?? imm.case_status}
-                            onChange={(e) => setPendingStatus((p) => ({ ...p, [imm.id]: e.target.value }))}
-                            className="text-xs border border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-600"
-                          >
-                            {CASE_STATUSES.map((s) => (
-                              <option key={s} value={s}>{messages.shared.caseStatuses[s as keyof typeof messages.shared.caseStatuses]}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
-                            {status.label}
-                          </span>
-                        )}
+                        <div className="font-medium text-slate-900">{t.caseCount(immigrant.totalCases)}</div>
+                        <div className="text-xs text-slate-400">
+                          {immigrant.totalCases === 0 ? t.noCases : t.openCaseQueue}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
-                        {isEditing ? (
-                          <select
-                            value={pendingLawyer[imm.id] ?? (imm.assigned_lawyer_id || '')}
-                            onChange={(e) => setPendingLawyer((p) => ({ ...p, [imm.id]: e.target.value }))}
-                            className="text-xs border border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-600 max-w-[200px]"
-                          >
-                            <option value="">{t.selectLawyer}</option>
-                            {lawyers.map((l) => (
-                              <option key={l.user_id} value={l.user_id}>{l.full_name}</option>
-                            ))}
-                          </select>
-                        ) : (
-                          <span className="text-slate-600 text-sm">
-                            {imm.assignedLawyer?.full_name || <span className="text-slate-400">{t.noLawyer}</span>}
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap">{formatDate(imm.created_at, locale)}</td>
-                      <td className="px-6 py-4">
-                        {isEditing ? (
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => { saveStatus(imm); saveLawyer(imm) }}
-                              disabled={isBusy}
-                              className="text-xs px-3 py-1.5 rounded-lg bg-brand-700 text-white hover:bg-brand-800 disabled:opacity-50 font-medium transition-colors"
-                            >
-                              {isBusy ? t.saving : messages.shared.actions.save}
-                            </button>
-                            <button
-                              onClick={() => setActiveRow(null)}
-                              disabled={isBusy}
-                              className="text-xs px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-                            >
-                              ✕
-                            </button>
+                        {immigrant.latestCaseId && immigrant.latestCaseTitle ? (
+                          <div className="space-y-2">
+                            <div className="font-medium text-slate-900">{immigrant.latestCaseTitle}</div>
+                            {latestStage && (
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${latestStage.color}`}
+                              >
+                                {latestStage.label}
+                              </span>
+                            )}
                           </div>
                         ) : (
-                          <button
-                            onClick={() => {
-                              setActiveRow(imm.id)
-                              setPendingStatus((p) => ({ ...p, [imm.id]: imm.case_status }))
-                              setPendingLawyer((p) => ({ ...p, [imm.id]: imm.assigned_lawyer_id || '' }))
-                            }}
-                            className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium transition-colors"
-                          >
-                            {t.overrideStatus}
-                          </button>
+                          <span className="text-slate-400">{t.noCases}</span>
                         )}
+                      </td>
+                      <td className="px-6 py-4 text-slate-500 whitespace-nowrap">
+                        {formatDate(immigrant.created_at, locale)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          {immigrant.latestCaseId ? (
+                            <Link
+                              href={`/admin/cases/${immigrant.latestCaseId}`}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 transition-colors"
+                            >
+                              {t.viewLatestCase}
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                          ) : (
+                            <Link
+                              href="/admin/cases"
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-200 transition-colors"
+                            >
+                              {t.openCaseQueue}
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </Link>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )

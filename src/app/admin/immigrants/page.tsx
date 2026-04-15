@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import AdminLayout from '@/components/AdminLayout'
 import { createClient } from '@/lib/supabase/server'
+import { sortCasesByRecency } from '@/lib/cases'
 import AdminImmigrantsClient from './AdminImmigrantsClient'
 
 export default async function AdminImmigrantsPage() {
@@ -14,35 +15,39 @@ export default async function AdminImmigrantsPage() {
 
   if (!profile || profile.role !== 'admin') redirect('/')
 
-  const [{ data: immigrants }, { data: lawyers }] = await Promise.all([
+  const [{ data: immigrants }, { data: cases }] = await Promise.all([
     supabase
       .from('immigrants')
       .select('*')
       .order('created_at', { ascending: false }),
     supabase
-      .from('lawyers')
-      .select('user_id, full_name, email, approval_status, is_active')
-      .eq('approval_status', 'approved')
-      .order('full_name', { ascending: true }),
+      .from('cases')
+      .select('id, immigrant_id, title, stage, created_at, updated_at'),
   ])
 
-  // Build lawyer name lookup by user_id for the assigned_lawyer_id column
-  const lawyerMap = new Map(
-    (lawyers || []).map((l: any) => [l.user_id, l])
-  )
+  const casesByImmigrant = new Map<string, any[]>()
+  for (const caseItem of cases || []) {
+    const existing = casesByImmigrant.get(caseItem.immigrant_id) || []
+    existing.push(caseItem)
+    casesByImmigrant.set(caseItem.immigrant_id, existing)
+  }
 
   const hydratedImmigrants = (immigrants || []).map((imm: any) => ({
     ...imm,
-    assignedLawyer: imm.assigned_lawyer_id ? lawyerMap.get(imm.assigned_lawyer_id) || null : null,
+    totalCases: (casesByImmigrant.get(imm.id) || []).length,
+    ...(function () {
+      const latestCase = sortCasesByRecency(casesByImmigrant.get(imm.id) || [])[0] || null
+      return {
+        latestCaseId: latestCase?.id || null,
+        latestCaseTitle: latestCase?.title || null,
+        latestCaseStage: latestCase?.stage || null,
+      }
+    })(),
   }))
 
   return (
     <AdminLayout userEmail={user.email} userName={profile.full_name}>
-      <AdminImmigrantsClient
-        immigrants={hydratedImmigrants}
-        lawyers={lawyers || []}
-        adminUserId={user.id}
-      />
+      <AdminImmigrantsClient immigrants={hydratedImmigrants} />
     </AdminLayout>
   )
 }

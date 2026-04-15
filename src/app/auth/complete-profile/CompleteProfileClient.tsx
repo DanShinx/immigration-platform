@@ -73,6 +73,7 @@ export default function CompleteProfileClient({
           full_name: normalizedFullName,
           email: user.email,
           nationality: nationality.trim() || messages.shared.placeholders.pending,
+          // Preserve the legacy field until the remaining admin flow is fully migrated.
           case_status: 'pending',
         },
         { onConflict: 'user_id' }
@@ -103,7 +104,7 @@ export default function CompleteProfileClient({
       }
     }
 
-    router.push(role === 'lawyer' ? '/lawyer/dashboard' : '/immigrant/dashboard')
+    router.push(role === 'lawyer' ? '/lawyer/dashboard' : '/immigrant/cases/new')
     router.refresh()
   }
 
