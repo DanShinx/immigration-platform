@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import ImmigrantCaseDetailClient from './ImmigrantCaseDetailClient'
 import { createClient } from '@/lib/supabase/server'
+import { isCaseDeleted } from '@/lib/cases'
 
 export default async function ImmigrantCaseDetailPage({
   params,
@@ -40,6 +41,7 @@ export default async function ImmigrantCaseDetailPage({
     .single()
 
   if (!caseItem) notFound()
+  if (isCaseDeleted(caseItem)) redirect('/immigrant/cases')
 
   const [{ data: documents }, { data: payments }, { data: events }] = await Promise.all([
     supabase.from('case_documents').select('*').eq('case_id', caseItem.id).order('uploaded_at', { ascending: false }),

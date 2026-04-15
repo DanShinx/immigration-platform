@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import NewCaseClient from './NewCaseClient'
 import { createClient } from '@/lib/supabase/server'
+import { filterVisibleCases } from '@/lib/cases'
 import { ensureImmigrantProfile } from '@/lib/immigrants'
 import type { CaseTrackCode } from '@/types'
 
@@ -51,7 +52,7 @@ export default async function NewCasePage({
       <NewCaseClient
         immigrantId={immigrant.id}
         initialTrack={initialTrack}
-        existingCases={cases || []}
+        existingCases={filterVisibleCases(cases || [])}
       />
     </DashboardLayout>
   )

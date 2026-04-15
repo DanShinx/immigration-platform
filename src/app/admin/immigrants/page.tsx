@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import AdminLayout from '@/components/AdminLayout'
 import { createClient } from '@/lib/supabase/server'
-import { sortCasesByRecency } from '@/lib/cases'
+import { filterVisibleCases, sortCasesByRecency } from '@/lib/cases'
 import AdminImmigrantsClient from './AdminImmigrantsClient'
 
 export default async function AdminImmigrantsPage() {
@@ -26,7 +26,7 @@ export default async function AdminImmigrantsPage() {
   ])
 
   const casesByImmigrant = new Map<string, any[]>()
-  for (const caseItem of cases || []) {
+  for (const caseItem of filterVisibleCases(cases || [])) {
     const existing = casesByImmigrant.get(caseItem.immigrant_id) || []
     existing.push(caseItem)
     casesByImmigrant.set(caseItem.immigrant_id, existing)

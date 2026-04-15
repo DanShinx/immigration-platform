@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import ImmigrantDocumentsClient from './ImmigrantDocumentsClient'
 import { createClient } from '@/lib/supabase/server'
-import { sortCasesByRecency } from '@/lib/cases'
+import { filterVisibleCases, sortCasesByRecency } from '@/lib/cases'
 
 export default async function ImmigrantDocumentsPage({
   searchParams,
@@ -38,7 +38,7 @@ export default async function ImmigrantDocumentsPage({
     .select('id, title, track_code, updated_at, created_at')
     .eq('immigrant_id', immigrant.id)
 
-  const cases = sortCasesByRecency(rawCases || [])
+  const cases = sortCasesByRecency(filterVisibleCases(rawCases || []))
   const currentCaseId =
     cases.find((caseItem) => caseItem.id === searchParams?.case)?.id || cases[0]?.id || null
 

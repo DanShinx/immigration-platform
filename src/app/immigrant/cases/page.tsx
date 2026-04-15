@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import ImmigrantCasesClient from './ImmigrantCasesClient'
 import { createClient } from '@/lib/supabase/server'
-import { sortCasesByRecency } from '@/lib/cases'
+import { filterVisibleCases, sortCasesByRecency } from '@/lib/cases'
 
 export default async function ImmigrantCasesPage() {
   const supabase = createClient()
@@ -34,9 +34,8 @@ export default async function ImmigrantCasesPage() {
         .eq('immigrant_id', immigrant.id)
     : { data: [] as any[] }
 
-  const lawyerIds = Array.from(
-    new Set((cases || []).map((caseItem) => caseItem.assigned_lawyer_user_id).filter(Boolean))
-  )
+  const visibleCases = filterVisibleCases(cases || [])
+  const lawyerIds = Array.from(new Set(visibleCases.map((caseItem) => caseItem.assigned_lawyer_user_id).filter(Boolean)))
 
   const { data: lawyers } = lawyerIds.length
     ? await supabase
@@ -47,7 +46,7 @@ export default async function ImmigrantCasesPage() {
 
   const lawyerMap = new Map((lawyers || []).map((lawyer) => [lawyer.user_id, lawyer.full_name]))
   const hydratedCases = sortCasesByRecency(
-    (cases || []).map((caseItem) => ({
+    visibleCases.map((caseItem) => ({
       ...caseItem,
       lawyerName: caseItem.assigned_lawyer_user_id
         ? lawyerMap.get(caseItem.assigned_lawyer_user_id) || null

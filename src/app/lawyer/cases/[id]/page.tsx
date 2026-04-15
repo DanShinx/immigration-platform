@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import LawyerCaseDetailClient from './LawyerCaseDetailClient'
 import { createClient } from '@/lib/supabase/server'
+import { isCaseDeleted } from '@/lib/cases'
 
 export default async function LawyerCaseDetailPage({
   params,
@@ -31,6 +32,7 @@ export default async function LawyerCaseDetailPage({
     .single()
 
   if (!caseItem) notFound()
+  if (isCaseDeleted(caseItem)) redirect('/lawyer/cases')
 
   const [{ data: immigrant }, { data: documents }, { data: notes }, { data: payments }] =
     await Promise.all([

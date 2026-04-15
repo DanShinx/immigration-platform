@@ -55,9 +55,36 @@ export default function ImmigrantCaseDetailClient({
       await supabase.storage.from(documentsBucket).remove(storagePaths)
     }
 
-    const { error } = await supabase.from('cases').delete().eq('id', caseItem.id)
+    const { error: deleteErrorResult } = await supabase.from('cases').delete().eq('id', caseItem.id)
 
-    if (error) {
+    if (!deleteErrorResult) {
+      router.push('/immigrant/cases')
+      router.refresh()
+      return
+    }
+
+    await supabase
+      .from('lawyer_assignment_requests')
+      .update({ status: 'withdrawn', responded_at: new Date().toISOString() })
+      .eq('case_id', caseItem.id)
+      .eq('status', 'pending')
+
+    const { error: softDeleteError } = await supabase
+      .from('cases')
+      .update({
+        stage: 'closed',
+        outcome: 'withdrawn',
+        closed_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        metadata: {
+          ...(caseItem.metadata || {}),
+          deleted_by_immigrant: true,
+          deleted_at: new Date().toISOString(),
+        },
+      })
+      .eq('id', caseItem.id)
+
+    if (softDeleteError) {
       setDeleteError(copy.caseDetail.deleteError)
       setDeleting(false)
       return

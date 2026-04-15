@@ -129,6 +129,17 @@ export function sortCasesByRecency<T extends Pick<CaseRecord, 'updated_at' | 'cr
   })
 }
 
+export function isCaseDeleted(
+  caseRecord: { metadata?: Record<string, unknown> | null } | null | undefined
+) {
+  const deletedFlag = caseRecord?.metadata?.deleted_by_immigrant
+  return deletedFlag === true || deletedFlag === 'true'
+}
+
+export function filterVisibleCases<T>(cases: T[]) {
+  return cases.filter((caseRecord) => !isCaseDeleted(caseRecord as { metadata?: Record<string, unknown> | null }))
+}
+
 export function getDefaultCaseTitle(trackCode: CaseTrackCode, locale: Locale = defaultLocale) {
   return getCaseTrackMeta(trackCode, locale).title
 }

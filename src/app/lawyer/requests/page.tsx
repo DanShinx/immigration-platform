@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import LawyerRequestsClient from './LawyerRequestsClient'
 import { createClient } from '@/lib/supabase/server'
+import { filterVisibleCases } from '@/lib/cases'
 
 export default async function LawyerRequestsPage() {
   const supabase = createClient()
@@ -35,7 +36,8 @@ export default async function LawyerRequestsPage() {
         .in('id', caseIds)
     : { data: [] as any[] }
 
-  const immigrantIds = Array.from(new Set((cases || []).map((caseItem) => caseItem.immigrant_id)))
+  const visibleCases = filterVisibleCases(cases || [])
+  const immigrantIds = Array.from(new Set(visibleCases.map((caseItem) => caseItem.immigrant_id)))
   const { data: immigrants } = immigrantIds.length
     ? await supabase
         .from('immigrants')
@@ -43,7 +45,7 @@ export default async function LawyerRequestsPage() {
         .in('id', immigrantIds)
     : { data: [] as any[] }
 
-  const casesById = new Map((cases || []).map((caseItem) => [caseItem.id, caseItem]))
+  const casesById = new Map(visibleCases.map((caseItem) => [caseItem.id, caseItem]))
   const immigrantsById = new Map((immigrants || []).map((immigrant) => [immigrant.id, immigrant]))
 
   const hydratedRequests = (requests || []).map((request) => {
@@ -54,7 +56,7 @@ export default async function LawyerRequestsPage() {
       caseItem,
       immigrant: caseItem ? immigrantsById.get(caseItem.immigrant_id) || null : null,
     }
-  })
+  }).filter((request) => request.caseItem)
 
   return (
     <DashboardLayout role="lawyer" userEmail={user.email} userName={profile.full_name}>

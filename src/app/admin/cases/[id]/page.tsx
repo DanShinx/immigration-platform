@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation'
 import AdminLayout from '@/components/AdminLayout'
 import { createClient } from '@/lib/supabase/server'
+import { isCaseDeleted } from '@/lib/cases'
 import AdminCaseDetailClient from './AdminCaseDetailClient'
 
 export default async function AdminCaseDetailPage({
@@ -30,6 +31,7 @@ export default async function AdminCaseDetailPage({
     .single()
 
   if (!caseItem) notFound()
+  if (isCaseDeleted(caseItem)) redirect('/admin/cases')
 
   const [
     { data: immigrant },

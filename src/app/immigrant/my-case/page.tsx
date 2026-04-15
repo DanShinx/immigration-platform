@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { filterVisibleCases } from '@/lib/cases'
 
 export default async function ImmigrantMyCaseRedirectPage() {
   const supabase = createClient()
@@ -25,7 +26,8 @@ export default async function ImmigrantMyCaseRedirectPage() {
     .order('updated_at', { ascending: false })
     .limit(10)
 
-  const activeCase = (cases || []).find(
+  const visibleCases = filterVisibleCases(cases || [])
+  const activeCase = visibleCases.find(
     (caseItem) => !['approved', 'rejected', 'closed'].includes(caseItem.stage)
   )
 
@@ -33,8 +35,8 @@ export default async function ImmigrantMyCaseRedirectPage() {
     redirect(`/immigrant/cases/${activeCase.id}`)
   }
 
-  if (cases?.[0]) {
-    redirect(`/immigrant/cases/${cases[0].id}`)
+  if (visibleCases[0]) {
+    redirect(`/immigrant/cases/${visibleCases[0].id}`)
   }
 
   redirect('/immigrant/cases')

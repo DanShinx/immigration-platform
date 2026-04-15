@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import AdminLayout from '@/components/AdminLayout'
 import { createClient } from '@/lib/supabase/server'
-import { sortCasesByRecency } from '@/lib/cases'
+import { filterVisibleCases, sortCasesByRecency } from '@/lib/cases'
 import AdminCasesClient from './AdminCasesClient'
 
 export default async function AdminCasesPage() {
@@ -25,11 +25,10 @@ export default async function AdminCasesPage() {
     .select('*')
     .order('updated_at', { ascending: false })
 
-  const immigrantIds = Array.from(
-    new Set((rawCases || []).map((c) => c.immigrant_id).filter(Boolean))
-  )
+  const visibleCases = filterVisibleCases(rawCases || [])
+  const immigrantIds = Array.from(new Set(visibleCases.map((c) => c.immigrant_id).filter(Boolean)))
   const lawyerIds = Array.from(
-    new Set((rawCases || []).map((c) => c.assigned_lawyer_user_id).filter(Boolean))
+    new Set(visibleCases.map((c) => c.assigned_lawyer_user_id).filter(Boolean))
   )
 
   const [{ data: immigrants }, { data: lawyers }] = await Promise.all([
@@ -51,7 +50,7 @@ export default async function AdminCasesPage() {
   const lawyerMap = new Map((lawyers || []).map((l: any) => [l.user_id, l]))
 
   const cases = sortCasesByRecency(
-    (rawCases || []).map((c) => ({
+    visibleCases.map((c) => ({
       ...c,
       immigrant: immigrantMap.get(c.immigrant_id) || null,
       lawyer: c.assigned_lawyer_user_id ? lawyerMap.get(c.assigned_lawyer_user_id) || null : null,
