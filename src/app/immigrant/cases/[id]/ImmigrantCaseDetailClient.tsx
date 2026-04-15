@@ -1,16 +1,19 @@
 'use client'
 
 import Link from 'next/link'
-import { CreditCard, FileText, FolderTree, Shield, TimerReset, Upload } from 'lucide-react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { CreditCard, FileText, FolderTree, Shield, TimerReset, Trash2, Upload } from 'lucide-react'
 import { useI18n } from '@/components/LanguageProvider'
 import { getCaseContent } from '@/lib/case-content'
+import { createClient } from '@/lib/supabase/client'
 import {
   getCaseStageMeta,
   getCaseTrackMeta,
   getPaymentMilestoneLabel,
   getPaymentStatusLabel,
 } from '@/lib/cases'
-import { getDocumentTypeLabel } from '@/lib/documents'
+import { documentsBucket, getDocumentTypeLabel, getStoragePathFromFileUrl } from '@/lib/documents'
 import { formatDate } from '@/lib/utils'
 import type { CaseDocument, CaseEvent, CasePayment, CaseRecord } from '@/types'
 
@@ -29,10 +32,40 @@ export default function ImmigrantCaseDetailClient({
   payments,
   events,
 }: Props) {
+  const supabase = createClient()
+  const router = useRouter()
   const { locale } = useI18n()
   const copy = getCaseContent(locale)
   const stage = getCaseStageMeta(caseItem.stage, locale)
   const track = getCaseTrackMeta(caseItem.track_code, locale)
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  async function handleDeleteCase() {
+    if (!window.confirm(copy.caseDetail.deleteConfirm)) return
+
+    setDeleting(true)
+    setDeleteError(null)
+
+    const storagePaths = documents
+      .map((document) => getStoragePathFromFileUrl(document.file_url))
+      .filter((path): path is string => Boolean(path))
+
+    if (storagePaths.length) {
+      await supabase.storage.from(documentsBucket).remove(storagePaths)
+    }
+
+    const { error } = await supabase.from('cases').delete().eq('id', caseItem.id)
+
+    if (error) {
+      setDeleteError(copy.caseDetail.deleteError)
+      setDeleting(false)
+      return
+    }
+
+    router.push('/immigrant/cases')
+    router.refresh()
+  }
 
   return (
     <div className="space-y-8">
@@ -66,16 +99,31 @@ export default function ImmigrantCaseDetailClient({
             <Shield className="w-4 h-4" />
             {copy.caseDetail.requestLawyer}
           </Link>
+          <button
+            type="button"
+            onClick={handleDeleteCase}
+            disabled={deleting}
+            className="inline-flex items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-white px-5 py-3 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-60"
+          >
+            <Trash2 className="w-4 h-4" />
+            {deleting ? copy.caseDetail.deleting : copy.caseDetail.deleteCase}
+          </button>
         </div>
       </div>
 
+      {deleteError ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {deleteError}
+        </div>
+      ) : null}
+
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="rounded-3xl border border-slate-200 bg-white p-6">
-          <div className="text-sm text-slate-400">Opened</div>
+          <div className="text-sm text-slate-400">{copy.caseDetail.opened}</div>
           <div className="font-semibold text-slate-900 mt-2">{formatDate(caseItem.created_at, locale)}</div>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-white p-6">
-          <div className="text-sm text-slate-400">Lawyer</div>
+          <div className="text-sm text-slate-400">{copy.caseDetail.lawyer}</div>
           <div className="font-semibold text-slate-900 mt-2">
             {lawyer?.full_name || copy.caseDetail.noLawyer}
           </div>
@@ -161,7 +209,7 @@ export default function ImmigrantCaseDetailClient({
         <div className="rounded-3xl border border-slate-200 bg-white p-6">
           <div className="flex items-center gap-2">
             <FolderTree className="w-4 h-4 text-brand-600" />
-            <h2 className="font-semibold text-slate-900">Linked history</h2>
+            <h2 className="font-semibold text-slate-900">{copy.caseDetail.linkedHistory}</h2>
           </div>
           <div className="grid md:grid-cols-2 gap-4 mt-5 text-sm">
             <div className="rounded-2xl bg-slate-50 p-4">

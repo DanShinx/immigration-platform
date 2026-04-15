@@ -25,6 +25,7 @@ The separate `20260415_add_admin_cases_rls.sql` file is superseded — admin pol
 
 ## Blocked on Human Testing
 
+- Apply `supabase/migrations/20260415_add_case_delete_policy.sql` in Supabase so immigrant-side case deletion is allowed under RLS in shared environments.
 - **Test the full multi-case flow with real accounts:**
   - Prior failed case
   - New Nomad Holder case approved

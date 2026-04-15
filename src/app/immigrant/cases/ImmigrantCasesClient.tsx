@@ -51,7 +51,7 @@ export default function ImmigrantCasesClient({ cases }: Props) {
             </div>
           </div>
           <div className="rounded-2xl bg-slate-50 p-4">
-            <div className="text-slate-400">Lawyer</div>
+            <div className="text-slate-400">{copy.caseDetail.lawyer}</div>
             <div className="font-medium text-slate-900 mt-1">
               {caseItem.lawyerName || copy.immigrantCases.lawyerPending}
             </div>

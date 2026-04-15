@@ -52,7 +52,7 @@ export default function LawyerCaseDetailClient({
       case_id: caseItem.id,
       actor_user_id: lawyerId,
       event_type: 'stage_updated',
-      title: 'Case stage updated',
+      title: copy.lawyerCases.stage,
       description: `Stage changed to ${nextStage}.`,
     })
 
@@ -141,7 +141,7 @@ export default function LawyerCaseDetailClient({
         <div className="rounded-3xl border border-slate-200 bg-white p-6">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-brand-600" />
-            <h2 className="font-semibold text-slate-900">Payments</h2>
+            <h2 className="font-semibold text-slate-900">{copy.caseDetail.payments}</h2>
           </div>
           {payments.length === 0 ? (
             <p className="text-sm text-slate-500 mt-5">{copy.caseDetail.noPayments}</p>
@@ -183,7 +183,7 @@ export default function LawyerCaseDetailClient({
         <div className="rounded-3xl border border-slate-200 bg-white p-6">
           <div className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4 text-brand-600" />
-            <h2 className="font-semibold text-slate-900">Private notes</h2>
+            <h2 className="font-semibold text-slate-900">{copy.caseDetail.privateNotes}</h2>
           </div>
 
           <div className="mt-5 space-y-3">
@@ -191,7 +191,7 @@ export default function LawyerCaseDetailClient({
               rows={4}
               value={newNote}
               onChange={(event) => setNewNote(event.target.value)}
-              placeholder="Add a lawyer-only note for this case..."
+              placeholder={copy.caseDetail.privateNotesPlaceholder}
               className="w-full rounded-2xl border border-slate-300 bg-white px-3.5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 resize-none"
             />
             <button
@@ -200,12 +200,12 @@ export default function LawyerCaseDetailClient({
               disabled={savingNote || !newNote.trim()}
               className="inline-flex items-center justify-center rounded-2xl bg-brand-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:opacity-60"
             >
-              {savingNote ? 'Saving...' : 'Save note'}
+              {savingNote ? copy.caseDetail.savingNote : copy.caseDetail.saveNote}
             </button>
           </div>
 
           {localNotes.length === 0 ? (
-            <p className="text-sm text-slate-500 mt-5">No private notes yet.</p>
+            <p className="text-sm text-slate-500 mt-5">{copy.caseDetail.noPrivateNotes}</p>
           ) : (
             <div className="space-y-3 mt-5">
               {localNotes.map((note) => (
