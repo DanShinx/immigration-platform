@@ -1,12 +1,15 @@
-import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
 import ImmigrantDashboardClient from './ImmigrantDashboardClient'
+import { createClient } from '@/lib/supabase/server'
+import { sortCasesByRecency } from '@/lib/cases'
 
 export default async function ImmigrantDashboardPage() {
   const supabase = createClient()
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/auth/login')
 
   const { data: profile } = await supabase
@@ -17,73 +20,64 @@ export default async function ImmigrantDashboardPage() {
 
   if (!profile || profile.role !== 'immigrant') redirect('/lawyer/dashboard')
 
-  const { data: immigrantData } = await supabase
+  const { data: immigrant } = await supabase
     .from('immigrants')
     .select('*')
     .eq('user_id', user.id)
     .single()
 
-  // Get lawyer info if assigned
-  let lawyerInfo = null
-  if (immigrantData?.assigned_lawyer_id) {
-    const { data: lawyer } = await supabase
-      .from('lawyers')
-      .select('full_name, email, specialization, phone')
-      .eq('user_id', immigrantData.assigned_lawyer_id)
-      .single()
-    lawyerInfo = lawyer
-  }
-
-  const { data: pendingRows } = immigrantData
-    ? await supabase
-        .from('lawyer_assignment_requests')
-        .select('*')
-        .eq('immigrant_id', immigrantData.id)
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(1)
+  const { data: cases } = immigrant
+    ? await supabase.from('cases').select('*').eq('immigrant_id', immigrant.id)
     : { data: [] as any[] }
 
-  const pendingRequestRow = pendingRows?.[0] || null
+  const caseIds = (cases || []).map((caseItem) => caseItem.id)
+  const lawyerIds = Array.from(
+    new Set((cases || []).map((caseItem) => caseItem.assigned_lawyer_user_id).filter(Boolean))
+  )
 
-  let pendingLawyer = null
-  if (pendingRequestRow?.lawyer_user_id) {
-    const { data: lawyer } = await supabase
-      .from('lawyers')
-      .select('full_name, email, specialization, phone')
-      .eq('user_id', pendingRequestRow.lawyer_user_id)
-      .single()
+  const [{ data: lawyers }, { data: documents }, { data: requests }] = await Promise.all([
+    lawyerIds.length
+      ? supabase.from('lawyers').select('user_id, full_name').in('user_id', lawyerIds)
+      : Promise.resolve({ data: [] as any[] }),
+    caseIds.length
+      ? supabase.from('case_documents').select('*').in('case_id', caseIds).order('uploaded_at', { ascending: false }).limit(5)
+      : Promise.resolve({ data: [] as any[] }),
+    caseIds.length
+      ? supabase
+          .from('lawyer_assignment_requests')
+          .select('id, case_id, lawyer_user_id, status, created_at')
+          .in('case_id', caseIds)
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false })
+          .limit(1)
+      : Promise.resolve({ data: [] as any[] }),
+  ])
 
-    pendingLawyer = lawyer
-  }
+  const lawyerMap = new Map((lawyers || []).map((lawyer) => [lawyer.user_id, lawyer.full_name]))
+  const hydratedCases = sortCasesByRecency(
+    (cases || []).map((caseItem) => ({
+      ...caseItem,
+      lawyerName: caseItem.assigned_lawyer_user_id
+        ? lawyerMap.get(caseItem.assigned_lawyer_user_id) || null
+        : null,
+    }))
+  )
 
-  const { data: documents } = immigrantData
-    ? await supabase
-        .from('case_documents')
-        .select('*')
-        .eq('immigrant_id', immigrantData.id)
-        .order('uploaded_at', { ascending: false })
-        .limit(5)
-    : { data: [] as any[] }
+  const pendingRequestRow = requests?.[0] || null
 
   return (
-    <DashboardLayout
-      role="immigrant"
-      userEmail={user.email}
-      userName={profile.full_name}
-    >
+    <DashboardLayout role="immigrant" userEmail={user.email} userName={profile.full_name}>
       <ImmigrantDashboardClient
-        immigrant={immigrantData}
-        lawyer={lawyerInfo}
+        cases={hydratedCases}
+        recentDocuments={documents || []}
         pendingRequest={
           pendingRequestRow
             ? {
-                ...pendingRequestRow,
-                lawyer: pendingLawyer,
+                caseId: pendingRequestRow.case_id,
+                lawyerName: lawyerMap.get(pendingRequestRow.lawyer_user_id) || null,
               }
             : null
         }
-        recentDocuments={documents || []}
         userName={profile.full_name}
       />
     </DashboardLayout>

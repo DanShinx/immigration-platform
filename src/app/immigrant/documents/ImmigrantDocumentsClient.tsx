@@ -2,24 +2,33 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { AlertCircle, Eye, FileText, Shield, Trash2, Upload } from 'lucide-react'
-import { useI18n } from '@/components/LanguageProvider'
+import { Eye, FileText, Shield, Trash2, Upload } from 'lucide-react'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
+import { useI18n } from '@/components/LanguageProvider'
 import { createClient } from '@/lib/supabase/client'
+import { getCaseContent } from '@/lib/case-content'
+import { getCaseTrackMeta } from '@/lib/cases'
 import {
   buildDocumentStoragePath,
-  getDocumentTypeLabel,
-  getDocumentTypeOptions,
   documentsBucket,
   formatFileSize,
+  getDocumentTypeLabel,
+  getDocumentTypeOptions,
   getStoragePathFromFileUrl,
   isAbsoluteUrl,
 } from '@/lib/documents'
 import { formatDate } from '@/lib/utils'
 
+interface CaseOption {
+  id: string
+  title: string
+  track_code: string
+}
+
 interface DocumentRecord {
   id: string
+  case_id?: string | null
   immigrant_id: string
   document_type: string
   file_name: string
@@ -29,53 +38,39 @@ interface DocumentRecord {
   file_size?: number | null
 }
 
-interface ImmigrantRecord {
-  id: string
-  assigned_lawyer_id?: string | null
-}
-
 interface Props {
-  immigrant: ImmigrantRecord | null
+  cases: CaseOption[]
+  currentCaseId: string | null
   documents: DocumentRecord[]
+  immigrantId: string
 }
 
 const ACCEPTED_FILE_TYPES = '.pdf,.png,.jpg,.jpeg,.doc,.docx'
 
-export default function ImmigrantDocumentsClient({ immigrant, documents }: Props) {
+export default function ImmigrantDocumentsClient({
+  cases,
+  currentCaseId,
+  documents,
+  immigrantId,
+}: Props) {
   const router = useRouter()
   const supabase = createClient()
-  const { messages, locale } = useI18n()
+  const { locale, messages } = useI18n()
+  const copy = getCaseContent(locale)
   const t = messages.immigrantDocuments
 
   const documentTypeOptions = useMemo(() => getDocumentTypeOptions(locale), [locale])
+  const currentCase = cases.find((caseItem) => caseItem.id === currentCaseId) || null
 
-  const [selectedType, setSelectedType] = useState<string>(documentTypeOptions[0].value)
+  const [selectedType, setSelectedType] = useState<string>(documentTypeOptions[0]?.value || 'passport')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [fileInputKey, setFileInputKey] = useState(0)
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
-  const hasAssignedLawyer = Boolean(immigrant?.assigned_lawyer_id)
-
-  const stats = useMemo(() => {
-    const totalDocuments = documents.length
-    const lastUpload = documents[0]?.uploaded_at
-    const uniqueTypes = new Set(documents.map((document) => document.document_type)).size
-
-    return {
-      totalDocuments,
-      uniqueTypes,
-      lastUpload,
-    }
-  }, [documents])
-
-  async function openDocument(fileUrl: string, documentId?: string) {
-    setError(null)
-    setSuccessMessage(null)
-    setActiveDocumentId(documentId || null)
+  async function openDocument(fileUrl: string, documentId: string) {
+    setActiveDocumentId(documentId)
 
     try {
       if (isAbsoluteUrl(fileUrl)) {
@@ -83,17 +78,10 @@ export default function ImmigrantDocumentsClient({ immigrant, documents }: Props
         return
       }
 
-      const { data, error: signedUrlError } = await supabase.storage
-        .from(documentsBucket)
-        .createSignedUrl(fileUrl, 60 * 10)
-
-      if (signedUrlError || !data?.signedUrl) {
-        throw new Error(t.errors.open)
+      const { data } = await supabase.storage.from(documentsBucket).createSignedUrl(fileUrl, 60 * 10)
+      if (data?.signedUrl) {
+        window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
       }
-
-      window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t.errors.open)
     } finally {
       setActiveDocumentId(null)
     }
@@ -102,98 +90,70 @@ export default function ImmigrantDocumentsClient({ immigrant, documents }: Props
   async function handleUpload(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    if (!immigrant) {
-      setError(t.errors.noCase)
-      return
-    }
-
-    if (!selectedFile) {
-      setError(t.errors.noFile)
-      return
-    }
+    if (!currentCaseId || !selectedFile) return
 
     setSubmitting(true)
-    setError(null)
-    setSuccessMessage(null)
+    setFeedback(null)
 
-    try {
-      const storagePath = buildDocumentStoragePath(immigrant.id, selectedFile.name)
+    const storagePath = buildDocumentStoragePath(currentCaseId, selectedFile.name)
 
-      const { error: uploadError } = await supabase.storage
-        .from(documentsBucket)
-        .upload(storagePath, selectedFile, {
-          cacheControl: '3600',
-          upsert: false,
-        })
+    const { error: uploadError } = await supabase.storage
+      .from(documentsBucket)
+      .upload(storagePath, selectedFile, {
+        cacheControl: '3600',
+        upsert: false,
+      })
 
-      if (uploadError) {
-        throw new Error(
-          uploadError.message.includes('Bucket not found')
-            ? `${t.errors.missingBucketPrefix} "${documentsBucket}" in Supabase Storage.`
-            : uploadError.message
-        )
-      }
-
-      const { error: insertError } = await supabase
-        .from('case_documents')
-        .insert({
-          immigrant_id: immigrant.id,
-          document_type: selectedType,
-          file_name: selectedFile.name,
-          file_url: storagePath,
-          uploaded_at: new Date().toISOString(),
-          notes: notes.trim() || null,
-        })
-
-      if (insertError) {
-        await supabase.storage.from(documentsBucket).remove([storagePath])
-        throw new Error(insertError.message)
-      }
-
-      setSelectedFile(null)
-      setFileInputKey((currentKey) => currentKey + 1)
-      setNotes('')
-      setSelectedType(documentTypeOptions[0].value)
-      setSuccessMessage(t.successUpload)
-      router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t.errors.upload)
-    } finally {
+    if (uploadError) {
       setSubmitting(false)
+      setFeedback({ type: 'error', message: t.errors.upload })
+      return
     }
+
+    const { error: insertError } = await supabase.from('case_documents').insert({
+      immigrant_id: immigrantId,
+      case_id: currentCaseId,
+      document_type: selectedType,
+      file_name: selectedFile.name,
+      file_url: storagePath,
+      uploaded_at: new Date().toISOString(),
+      notes: notes.trim() || null,
+      file_size: selectedFile.size,
+    })
+
+    if (insertError) {
+      await supabase.storage.from(documentsBucket).remove([storagePath])
+      setSubmitting(false)
+      setFeedback({ type: 'error', message: insertError.message })
+      return
+    }
+
+    setSubmitting(false)
+    setSelectedFile(null)
+    setNotes('')
+    setFeedback({ type: 'success', message: t.successUpload })
+    router.refresh()
   }
 
   async function handleDelete(document: DocumentRecord) {
-    const confirmed = window.confirm(`${t.errors.confirmDelete} "${document.file_name}"?`)
-    if (!confirmed) return
-
     setActiveDocumentId(document.id)
-    setError(null)
-    setSuccessMessage(null)
+    setFeedback(null)
 
-    try {
-      const storagePath = getStoragePathFromFileUrl(document.file_url)
-
-      if (storagePath) {
-        await supabase.storage.from(documentsBucket).remove([storagePath])
-      }
-
-      const { error: deleteError } = await supabase
-        .from('case_documents')
-        .delete()
-        .eq('id', document.id)
-
-      if (deleteError) {
-        throw new Error(deleteError.message)
-      }
-
-      setSuccessMessage(t.successDelete)
-      router.refresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t.errors.delete)
-    } finally {
-      setActiveDocumentId(null)
+    const storagePath = getStoragePathFromFileUrl(document.file_url)
+    if (storagePath) {
+      await supabase.storage.from(documentsBucket).remove([storagePath])
     }
+
+    const { error } = await supabase.from('case_documents').delete().eq('id', document.id)
+    setActiveDocumentId(null)
+
+    if (error) {
+      setFeedback({ type: 'error', message: t.errors.delete })
+      return
+    }
+
+    setFeedback({ type: 'success', message: t.successDelete })
+    router.refresh()
   }
 
   return (
@@ -203,169 +163,168 @@ export default function ImmigrantDocumentsClient({ immigrant, documents }: Props
           <h1 className="text-2xl font-bold text-slate-900">{t.title}</h1>
           <p className="text-slate-500 mt-1">{t.subtitle}</p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-slate-500 bg-white border border-slate-200 rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500">
           <Shield className="w-4 h-4 text-brand-600" />
           {t.privacy}
         </div>
       </div>
 
-      {!immigrant && (
-        <div className="bg-brand-50 border border-brand-100 rounded-2xl p-6">
-          <AlertCircle className="w-6 h-6 text-brand-700 mb-3" />
-          <h2 className="font-semibold text-brand-900">{t.setupTitle}</h2>
-          <p className="text-sm text-brand-700 mt-1">{t.setupBody}</p>
-        </div>
-      )}
-
-      {immigrant && !hasAssignedLawyer && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
-          <AlertCircle className="w-6 h-6 text-amber-600 mb-3" />
-          <h2 className="font-semibold text-amber-900">{t.noLawyerTitle}</h2>
-          <p className="text-sm text-amber-700 mt-1">{t.noLawyerBody}</p>
-        </div>
-      )}
-
-      {error && <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-700">{error}</div>}
-      {successMessage && <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-sm text-green-700">{successMessage}</div>}
-
-      <div className="grid md:grid-cols-3 gap-5">
-        <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <div className="text-sm text-slate-500">{t.stats.uploaded}</div>
-          <div className="text-3xl font-bold text-slate-900 mt-2">{stats.totalDocuments}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <div className="text-sm text-slate-500">{t.stats.types}</div>
-          <div className="text-3xl font-bold text-slate-900 mt-2">{stats.uniqueTypes}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <div className="text-sm text-slate-500">{t.stats.lastUpload}</div>
-          <div className="text-lg font-semibold text-slate-900 mt-2">
-            {stats.lastUpload ? formatDate(stats.lastUpload, locale) : messages.shared.placeholders.noDocuments}
-          </div>
-        </div>
+      <div className="rounded-3xl border border-slate-200 bg-white p-6">
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Case</label>
+        <select
+          value={currentCaseId || ''}
+          onChange={(event) => {
+            const value = event.target.value
+            router.push(value ? `/immigrant/documents?case=${value}` : '/immigrant/documents')
+          }}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+        >
+          <option value="">Select a case</option>
+          {cases.map((caseItem) => (
+            <option key={caseItem.id} value={caseItem.id}>
+              {caseItem.title}
+            </option>
+          ))}
+        </select>
+        {currentCase ? (
+          <p className="text-sm text-slate-500 mt-3">
+            {getCaseTrackMeta(currentCase.track_code as any, locale).title}
+          </p>
+        ) : null}
       </div>
 
-      <div className="grid xl:grid-cols-[420px,1fr] gap-6">
-        <div className="bg-white rounded-2xl border border-slate-100 p-6 h-fit">
-          <div className="flex items-center gap-2 mb-2">
-            <Upload className="w-4 h-4 text-brand-600" />
-            <h2 className="font-semibold text-slate-900">{t.uploadCard.title}</h2>
-          </div>
-          <p className="text-sm text-slate-500 mb-6">{t.uploadCard.subtitle}</p>
+      {feedback && (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm ${
+            feedback.type === 'success'
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          {feedback.message}
+        </div>
+      )}
 
-          <form onSubmit={handleUpload} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                {t.uploadCard.documentType}
-              </label>
-              <select
-                value={selectedType}
-                onChange={(event) => setSelectedType(event.target.value)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition-all"
-              >
-                {documentTypeOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+      {!currentCaseId ? (
+        <div className="rounded-3xl border border-brand-200 bg-brand-50 p-6">
+          <h2 className="font-semibold text-brand-900">{copy.caseDetail.noDocuments}</h2>
+          <p className="text-sm text-brand-700 mt-2">{copy.immigrantDashboard.startNewCase}</p>
+        </div>
+      ) : (
+        <div className="grid xl:grid-cols-[420px,1fr] gap-6">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 h-fit">
+            <div className="flex items-center gap-2 mb-2">
+              <Upload className="w-4 h-4 text-brand-600" />
+              <h2 className="font-semibold text-slate-900">{t.uploadCard.title}</h2>
             </div>
+            <p className="text-sm text-slate-500 mb-6">{t.uploadCard.subtitle}</p>
 
-            <Input
-              key={fileInputKey}
-              type="file"
-              accept={ACCEPTED_FILE_TYPES}
-              label={t.uploadCard.file}
-              onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
-              helperText={selectedFile ? formatFileSize(selectedFile.size, locale) : t.uploadCard.fileHelper}
-            />
+            <form onSubmit={handleUpload} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  {t.uploadCard.documentType}
+                </label>
+                <select
+                  value={selectedType}
+                  onChange={(event) => setSelectedType(event.target.value)}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+                >
+                  {documentTypeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                {t.uploadCard.note}
-              </label>
-              <textarea
-                rows={4}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder={t.uploadCard.notePlaceholder}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:border-transparent transition-all resize-none"
+              <Input
+                type="file"
+                accept={ACCEPTED_FILE_TYPES}
+                label={t.uploadCard.file}
+                onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
+                helperText={selectedFile ? formatFileSize(selectedFile.size, locale) : t.uploadCard.fileHelper}
               />
-            </div>
 
-            <Button type="submit" loading={submitting} disabled={!immigrant || !selectedFile}>
-              {t.uploadCard.submit}
-            </Button>
-          </form>
-        </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  {t.uploadCard.note}
+                </label>
+                <textarea
+                  rows={4}
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  placeholder={t.uploadCard.notePlaceholder}
+                  className="w-full rounded-2xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600 resize-none"
+                />
+              </div>
 
-        <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
-          <div className="px-6 py-5 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-900">{t.library.title}</h2>
-            <p className="text-sm text-slate-500 mt-1">{t.library.subtitle}</p>
+              <Button type="submit" loading={submitting} disabled={!selectedFile}>
+                {t.uploadCard.submit}
+              </Button>
+            </form>
           </div>
 
-          {documents.length === 0 ? (
-            <div className="py-20 px-6 text-center">
-              <FileText className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-              <p className="text-slate-500 font-medium">{t.library.emptyTitle}</p>
-              <p className="text-sm text-slate-400 mt-1">{t.library.emptyBody}</p>
+          <div className="rounded-3xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-6 py-5 border-b border-slate-100">
+              <h2 className="font-semibold text-slate-900">{copy.caseDetail.documents}</h2>
+              <p className="text-sm text-slate-500 mt-1">{documents.length} files in this case</p>
             </div>
-          ) : (
-            <div className="divide-y divide-slate-50">
-              {documents.map((document) => {
-                const isBusy = activeDocumentId === document.id
 
-                return (
-                  <div key={document.id} className="px-6 py-5 flex flex-col lg:flex-row lg:items-center gap-4">
-                    <div className="w-11 h-11 rounded-2xl bg-brand-50 flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-5 h-5 text-brand-700" />
-                    </div>
+            {documents.length === 0 ? (
+              <div className="py-20 px-6 text-center">
+                <FileText className="w-12 h-12 text-slate-200 mx-auto mb-4" />
+                <p className="text-slate-500 font-medium">{copy.caseDetail.noDocuments}</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-50">
+                {documents.map((document) => {
+                  const isBusy = activeDocumentId === document.id
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                        <h3 className="font-medium text-slate-900 truncate">{document.file_name}</h3>
-                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 w-fit">
-                          {getDocumentTypeLabel(document.document_type, locale)}
-                        </span>
+                  return (
+                    <div key={document.id} className="px-6 py-5 flex flex-col lg:flex-row lg:items-center gap-4">
+                      <div className="w-11 h-11 rounded-2xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-5 h-5 text-brand-700" />
                       </div>
-                      <div className="text-sm text-slate-500 mt-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
-                        <span>{t.library.uploadedOn} {formatDate(document.uploaded_at, locale)}</span>
-                        {document.file_size ? <span>{formatFileSize(document.file_size, locale)}</span> : null}
-                      </div>
-                      {document.notes && <p className="text-sm text-slate-600 mt-2">{document.notes}</p>}
-                    </div>
 
-                    <div className="flex items-center gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={isBusy}
-                        onClick={() => openDocument(document.file_url, document.id)}
-                      >
-                        <Eye className="w-4 h-4" />
-                        {messages.shared.actions.view}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        disabled={isBusy}
-                        onClick={() => handleDelete(document)}
-                        className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        {messages.shared.actions.delete}
-                      </Button>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-slate-900">{document.file_name}</div>
+                        <div className="text-sm text-slate-500 mt-1">
+                          {getDocumentTypeLabel(document.document_type, locale)} · {formatDate(document.uploaded_at, locale)}
+                        </div>
+                        {document.notes ? <p className="text-sm text-slate-600 mt-2">{document.notes}</p> : null}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isBusy}
+                          onClick={() => openDocument(document.file_url, document.id)}
+                        >
+                          <Eye className="w-4 h-4" />
+                          {messages.shared.actions.view}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          disabled={isBusy}
+                          onClick={() => handleDelete(document)}
+                          className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          {messages.shared.actions.delete}
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
+                  )
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }

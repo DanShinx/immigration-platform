@@ -1,9 +1,7 @@
 import { redirect } from 'next/navigation'
-import DashboardLayout from '@/components/DashboardLayout'
 import { createClient } from '@/lib/supabase/server'
-import ImmigrantMyCaseClient from './ImmigrantMyCaseClient'
 
-export default async function ImmigrantMyCasePage() {
+export default async function ImmigrantMyCaseRedirectPage() {
   const supabase = createClient()
 
   const {
@@ -12,49 +10,32 @@ export default async function ImmigrantMyCasePage() {
 
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .single()
-
-  if (!profile || profile.role !== 'immigrant') redirect('/lawyer/dashboard')
-
   const { data: immigrant } = await supabase
     .from('immigrants')
-    .select('*')
+    .select('id')
     .eq('user_id', user.id)
     .single()
 
-  let lawyer = null
-  if (immigrant?.assigned_lawyer_id) {
-    const { data } = await supabase
-      .from('lawyers')
-      .select('full_name, email, phone, specialization, bar_association')
-      .eq('user_id', immigrant.assigned_lawyer_id)
-      .single()
-    lawyer = data
+  if (!immigrant) redirect('/immigrant/cases')
+
+  const { data: cases } = await supabase
+    .from('cases')
+    .select('id, stage, updated_at, created_at')
+    .eq('immigrant_id', immigrant.id)
+    .order('updated_at', { ascending: false })
+    .limit(10)
+
+  const activeCase = (cases || []).find(
+    (caseItem) => !['approved', 'rejected', 'closed'].includes(caseItem.stage)
+  )
+
+  if (activeCase) {
+    redirect(`/immigrant/cases/${activeCase.id}`)
   }
 
-  const { data: documents } = immigrant
-    ? await supabase
-        .from('case_documents')
-        .select('*')
-        .eq('immigrant_id', immigrant.id)
-        .order('uploaded_at', { ascending: false })
-    : { data: [] }
+  if (cases?.[0]) {
+    redirect(`/immigrant/cases/${cases[0].id}`)
+  }
 
-  return (
-    <DashboardLayout
-      role="immigrant"
-      userEmail={user.email}
-      userName={profile.full_name}
-    >
-      <ImmigrantMyCaseClient
-        immigrant={immigrant}
-        lawyer={lawyer}
-        documents={documents || []}
-      />
-    </DashboardLayout>
-  )
+  redirect('/immigrant/cases')
 }

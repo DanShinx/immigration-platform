@@ -15,6 +15,16 @@ export const documentTypeValues = [
   'marriage_certificate',
   'work_contract',
   'bank_statement',
+  'remote_work_letter',
+  'foreign_company_certificate',
+  'cv',
+  'degree_certificate',
+  'professional_experience',
+  'social_security',
+  'health_insurance',
+  'family_relationship_proof',
+  'dependency_proof',
+  'tax_record',
   'other',
 ] as const
 
@@ -48,10 +58,10 @@ export function sanitizeFileName(fileName: string) {
     .toLowerCase()
 }
 
-export function buildDocumentStoragePath(immigrantId: string, fileName: string) {
+export function buildDocumentStoragePath(caseId: string, fileName: string) {
   const timestamp = Date.now()
   const sanitizedName = sanitizeFileName(fileName)
-  return `${immigrantId}/${timestamp}-${sanitizedName}`
+  return `${caseId}/${timestamp}-${sanitizedName}`
 }
 
 export function isAbsoluteUrl(value: string) {

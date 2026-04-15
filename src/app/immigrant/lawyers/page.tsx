@@ -1,9 +1,14 @@
 import { redirect } from 'next/navigation'
 import DashboardLayout from '@/components/DashboardLayout'
-import { createClient } from '@/lib/supabase/server'
 import ImmigrantLawyerSelectionClient from './ImmigrantLawyerSelectionClient'
+import { createClient } from '@/lib/supabase/server'
+import { sortCasesByRecency } from '@/lib/cases'
 
-export default async function ImmigrantLawyersPage() {
+export default async function ImmigrantLawyersPage({
+  searchParams,
+}: {
+  searchParams?: { case?: string }
+}) {
   const supabase = createClient()
 
   const {
@@ -26,22 +31,32 @@ export default async function ImmigrantLawyersPage() {
     .eq('user_id', user.id)
     .single()
 
+  if (!immigrant) redirect('/immigrant/dashboard')
+
+  const { data: rawCases } = await supabase
+    .from('cases')
+    .select('*')
+    .eq('immigrant_id', immigrant.id)
+
+  const cases = sortCasesByRecency(rawCases || [])
+  const currentCase = cases.find((caseItem) => caseItem.id === searchParams?.case) || cases[0] || null
+
   let assignedLawyer = null
-  if (immigrant?.assigned_lawyer_id) {
+  if (currentCase?.assigned_lawyer_user_id) {
     const { data: lawyer } = await supabase
       .from('lawyers')
       .select('user_id, full_name, email, specialization, bar_association, bio, is_active, created_at')
-      .eq('user_id', immigrant.assigned_lawyer_id)
+      .eq('user_id', currentCase.assigned_lawyer_user_id)
       .single()
 
     assignedLawyer = lawyer
   }
 
-  const { data: pendingRows } = immigrant
+  const { data: pendingRows } = currentCase
     ? await supabase
         .from('lawyer_assignment_requests')
         .select('*')
-        .eq('immigrant_id', immigrant.id)
+        .eq('case_id', currentCase.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -76,7 +91,13 @@ export default async function ImmigrantLawyersPage() {
   return (
     <DashboardLayout role="immigrant" userEmail={user.email} userName={profile.full_name}>
       <ImmigrantLawyerSelectionClient
-        immigrantId={immigrant?.id || null}
+        immigrantId={immigrant.id}
+        cases={cases.map((caseItem) => ({
+          id: caseItem.id,
+          title: caseItem.title,
+          track_code: caseItem.track_code,
+        }))}
+        currentCaseId={currentCase?.id || null}
         lawyers={lawyers || []}
         assignedLawyer={assignedLawyer}
         pendingRequest={pendingRequest}

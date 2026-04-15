@@ -1,161 +1,98 @@
 'use client'
 
 import Link from 'next/link'
-import { Users, Clock, FileSearch, TrendingUp, ArrowRight, Inbox, FolderKanban } from 'lucide-react'
+import { ArrowRight, Briefcase, Clock3, Send } from 'lucide-react'
 import { useI18n } from '@/components/LanguageProvider'
-import { formatDate, getCaseStatusMeta } from '@/lib/utils'
+import { getCaseContent } from '@/lib/case-content'
+import { getCaseStageMeta, getCaseTrackMeta } from '@/lib/cases'
+import { formatDate } from '@/lib/utils'
+import type { CaseRecord } from '@/types'
 
 interface Props {
-  stats: { total: number; pending: number; inReview: number }
-  recentImmigrants: any[]
+  stats: {
+    total: number
+    pending: number
+    readyToFile: number
+  }
+  recentCases: (CaseRecord & {
+    immigrantName?: string | null
+  })[]
   lawyerName: string
 }
 
-export default function LawyerDashboardClient({ stats, recentImmigrants, lawyerName }: Props) {
-  const { messages, locale } = useI18n()
-  const hour = new Date().getHours()
-  const greeting =
-    hour < 12
-      ? messages.shared.greetings.morning
-      : hour < 20
-      ? messages.shared.greetings.afternoon
-      : messages.shared.greetings.evening
-
-  const cards = [
-    {
-      label: messages.lawyerDashboard.stats[0].label,
-      value: stats.total,
-      icon: Users,
-      color: 'bg-blue-50 text-blue-600',
-      change: messages.lawyerDashboard.stats[0].change,
-    },
-    {
-      label: messages.lawyerDashboard.stats[1].label,
-      value: stats.pending,
-      icon: Clock,
-      color: 'bg-yellow-50 text-yellow-600',
-      change: messages.lawyerDashboard.stats[1].change,
-    },
-    {
-      label: messages.lawyerDashboard.stats[2].label,
-      value: stats.inReview,
-      icon: FileSearch,
-      color: 'bg-purple-50 text-purple-600',
-      change: messages.lawyerDashboard.stats[2].change,
-    },
-  ]
+export default function LawyerDashboardClient({ stats, recentCases, lawyerName }: Props) {
+  const { locale } = useI18n()
+  const copy = getCaseContent(locale)
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">
-          {greeting}, {lawyerName.split(' ')[0]} 👋
-        </h1>
-        <p className="text-slate-500 mt-1">
-          {messages.lawyerDashboard.intro}
-        </p>
+        <h1 className="text-2xl font-bold text-slate-900">{copy.lawyerDashboard.title}, {lawyerName.split(' ')[0]}</h1>
+        <p className="text-slate-500 mt-1">{copy.lawyerDashboard.subtitle}</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-        {cards.map((stat) => (
-          <div key={stat.label} className="bg-white rounded-2xl border border-slate-100 p-6 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-4">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color}`}>
-                <stat.icon className="w-5 h-5" />
-              </div>
-              <TrendingUp className="w-4 h-4 text-slate-300" />
+      <div className="grid md:grid-cols-3 gap-5">
+        {[
+          { label: copy.lawyerDashboard.assignedCases, value: stats.total, icon: Briefcase, color: 'bg-brand-50 text-brand-700' },
+          { label: copy.lawyerDashboard.pendingRequests, value: stats.pending, icon: Clock3, color: 'bg-amber-50 text-amber-700' },
+          { label: copy.lawyerDashboard.readyToFile, value: stats.readyToFile, icon: Send, color: 'bg-cyan-50 text-cyan-700' },
+        ].map((stat) => (
+          <div key={stat.label} className="rounded-3xl border border-slate-200 bg-white p-6">
+            <div className={`w-11 h-11 rounded-2xl flex items-center justify-center ${stat.color}`}>
+              <stat.icon className="w-5 h-5" />
             </div>
-            <div className="text-3xl font-bold text-slate-900 mb-1">{stat.value}</div>
-            <div className="text-sm font-medium text-slate-700">{stat.label}</div>
-            <div className="text-xs text-slate-400 mt-0.5">{stat.change}</div>
+            <div className="text-3xl font-bold text-slate-900 mt-4">{stat.value}</div>
+            <div className="text-sm text-slate-500 mt-1">{stat.label}</div>
           </div>
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100 p-6">
-        <h2 className="font-semibold text-slate-900 mb-4">{messages.lawyerDashboard.quickActionsTitle}</h2>
-        <div className="grid md:grid-cols-3 gap-4">
-          {[
-            {
-              href: '/lawyer/requests',
-              icon: Inbox,
-              title: messages.lawyerDashboard.quickActions.requests.title,
-              body: messages.lawyerDashboard.quickActions.requests.body,
-            },
-            {
-              href: '/lawyer/documents',
-              icon: FileSearch,
-              title: messages.lawyerDashboard.quickActions.documents.title,
-              body: messages.lawyerDashboard.quickActions.documents.body,
-            },
-            {
-              href: '/lawyer/immigrants',
-              icon: FolderKanban,
-              title: messages.lawyerDashboard.quickActions.cases.title,
-              body: messages.lawyerDashboard.quickActions.cases.body,
-            },
-          ].map((action) => (
-            <Link
-              key={action.href}
-              href={action.href}
-              className="rounded-2xl border border-slate-200 bg-slate-50 p-4 hover:border-brand-300 hover:bg-brand-50 transition-colors"
-            >
-              <action.icon className="w-5 h-5 text-brand-600 mb-3" />
-              <div className="font-semibold text-slate-900">{action.title}</div>
-              <div className="text-sm text-slate-500 mt-1">{action.body}</div>
-              <div className="inline-flex items-center gap-1 mt-3 text-sm text-brand-600 font-medium">
-                {messages.shared.actions.view}
-                <ArrowRight className="w-3.5 h-3.5" />
-              </div>
-            </Link>
-          ))}
-        </div>
+      <div className="grid lg:grid-cols-3 gap-5">
+        {[
+          { href: '/lawyer/cases', title: copy.lawyerCases.title, body: copy.lawyerCases.subtitle },
+          { href: '/lawyer/requests', title: copy.lawyerDashboard.pendingRequests, body: 'Review new case assignment requests.' },
+          { href: '/lawyer/documents', title: 'Documents', body: 'Review uploaded files across assigned cases.' },
+        ].map((action) => (
+          <Link
+            key={action.href}
+            href={action.href}
+            className="rounded-3xl border border-slate-200 bg-white p-6 hover:border-brand-300 hover:shadow-lg transition-all"
+          >
+            <div className="font-semibold text-slate-900">{action.title}</div>
+            <div className="text-sm text-slate-500 mt-2 leading-relaxed">{action.body}</div>
+          </Link>
+        ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-100">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">{messages.lawyerDashboard.recentCases}</h2>
-          <Link
-            href="/lawyer/immigrants"
-            className="flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-800 font-medium transition-colors"
-          >
-            {messages.lawyerDashboard.viewAll}
-            <ArrowRight className="w-3.5 h-3.5" />
+      <div className="rounded-3xl border border-slate-200 bg-white p-6">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-semibold text-slate-900">{copy.lawyerDashboard.recentCases}</h2>
+          <Link href="/lawyer/cases" className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700">
+            {copy.lawyerCases.viewCase}
+            <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
-        {recentImmigrants.length === 0 ? (
-          <div className="py-16 text-center">
-            <Users className="w-12 h-12 text-slate-200 mx-auto mb-4" />
-            <p className="text-slate-400 font-medium">{messages.lawyerDashboard.emptyTitle}</p>
-            <p className="text-sm text-slate-300 mt-1">{messages.lawyerDashboard.emptyBody}</p>
-          </div>
+        {recentCases.length === 0 ? (
+          <p className="text-sm text-slate-500 mt-5">{copy.lawyerCases.empty}</p>
         ) : (
-          <div className="divide-y divide-slate-50">
-            {recentImmigrants.map((immigrant) => {
-              const status = getCaseStatusMeta(immigrant.case_status, locale)
+          <div className="space-y-4 mt-5">
+            {recentCases.map((caseItem) => {
+              const stage = getCaseStageMeta(caseItem.stage, locale)
+              const track = getCaseTrackMeta(caseItem.track_code, locale)
               return (
-                <Link
-                  key={immigrant.id}
-                  href={`/lawyer/immigrants/${immigrant.id}`}
-                  className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors group"
-                >
-                  <div className="w-9 h-9 rounded-full bg-brand-100 flex items-center justify-center text-brand-700 font-semibold text-sm flex-shrink-0">
-                    {immigrant.full_name?.charAt(0).toUpperCase()}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-slate-900 group-hover:text-brand-700 transition-colors truncate">
-                      {immigrant.full_name}
+                <Link key={caseItem.id} href={`/lawyer/cases/${caseItem.id}`} className="block rounded-2xl bg-slate-50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="font-medium text-slate-900">{caseItem.title}</div>
+                      <div className="text-sm text-slate-500 mt-1">
+                        {caseItem.immigrantName} · {track.shortTitle} · {formatDate(caseItem.created_at, locale)}
+                      </div>
                     </div>
-                    <div className="text-xs text-slate-400 mt-0.5">{immigrant.nationality}</div>
+                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${stage.color}`}>
+                      {stage.label}
+                    </span>
                   </div>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${status.color}`}>
-                    {status.label}
-                  </span>
-                  <div className="text-xs text-slate-400 hidden sm:block flex-shrink-0">
-                    {formatDate(immigrant.created_at, locale)}
-                  </div>
-                  <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-brand-500 transition-colors flex-shrink-0" />
                 </Link>
               )
             })}

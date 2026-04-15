@@ -3,19 +3,21 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { Eye, FileText, Filter, Search, Shield, Users } from 'lucide-react'
-import { useI18n } from '@/components/LanguageProvider'
 import Button from '@/components/ui/Button'
 import { createClient } from '@/lib/supabase/client'
+import { useI18n } from '@/components/LanguageProvider'
+import { getCaseStageMeta, getCaseTrackMeta } from '@/lib/cases'
 import {
   documentsBucket,
   getDocumentTypeLabel,
   getDocumentTypeOptions,
   isAbsoluteUrl,
 } from '@/lib/documents'
-import { formatDate, getCaseStatusMeta } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 
 interface DocumentRecord {
   id: string
+  case_id?: string | null
   immigrant_id: string
   document_type: string
   file_name: string
@@ -24,27 +26,36 @@ interface DocumentRecord {
   notes?: string | null
 }
 
+interface CaseRecord {
+  id: string
+  title: string
+  track_code: string
+  stage: string
+  immigrant_id: string
+}
+
 interface ImmigrantRecord {
   id: string
   full_name: string
   email: string
   nationality: string
-  case_status: string
 }
 
 interface Props {
   documents: DocumentRecord[]
+  cases: CaseRecord[]
   immigrants: ImmigrantRecord[]
 }
 
-export default function LawyerDocumentsClient({ documents, immigrants }: Props) {
+export default function LawyerDocumentsClient({ documents, cases, immigrants }: Props) {
   const supabase = createClient()
   const [search, setSearch] = useState('')
-  const [selectedImmigrantId, setSelectedImmigrantId] = useState('')
+  const [selectedCaseId, setSelectedCaseId] = useState('')
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null)
   const [selectedType, setSelectedType] = useState('')
   const { messages, locale } = useI18n()
 
+  const caseMap = useMemo(() => new Map(cases.map((caseItem) => [caseItem.id, caseItem])), [cases])
   const immigrantMap = useMemo(
     () => new Map(immigrants.map((immigrant) => [immigrant.id, immigrant])),
     [immigrants]
@@ -60,34 +71,24 @@ export default function LawyerDocumentsClient({ documents, immigrants }: Props) 
 
   const filteredDocuments = useMemo(() => {
     return documents.filter((document) => {
+      const caseItem = document.case_id ? caseMap.get(document.case_id) : null
       const immigrant = immigrantMap.get(document.immigrant_id)
       const normalizedSearch = search.trim().toLowerCase()
 
       const matchesSearch =
         !normalizedSearch ||
         document.file_name.toLowerCase().includes(normalizedSearch) ||
+        caseItem?.title?.toLowerCase().includes(normalizedSearch) ||
         immigrant?.full_name?.toLowerCase().includes(normalizedSearch) ||
         immigrant?.email?.toLowerCase().includes(normalizedSearch) ||
         immigrant?.nationality?.toLowerCase().includes(normalizedSearch)
 
-      const matchesImmigrant =
-        !selectedImmigrantId || document.immigrant_id === selectedImmigrantId
-
+      const matchesCase = !selectedCaseId || document.case_id === selectedCaseId
       const matchesType = !selectedType || document.document_type === selectedType
 
-      return matchesSearch && matchesImmigrant && matchesType
+      return matchesSearch && matchesCase && matchesType
     })
-  }, [documents, immigrantMap, search, selectedImmigrantId, selectedType])
-
-  const stats = useMemo(() => {
-    const immigrantsWithDocuments = new Set(documents.map((document) => document.immigrant_id)).size
-
-    return {
-      totalDocuments: documents.length,
-      immigrantsWithDocuments,
-      latestUpload: documents[0]?.uploaded_at || null,
-    }
-  }, [documents])
+  }, [documents, caseMap, immigrantMap, search, selectedCaseId, selectedType])
 
   async function openDocument(fileUrl: string, documentId: string) {
     setActiveDocumentId(documentId)
@@ -98,11 +99,9 @@ export default function LawyerDocumentsClient({ documents, immigrants }: Props) 
         return
       }
 
-      const { data, error } = await supabase.storage
-        .from(documentsBucket)
-        .createSignedUrl(fileUrl, 60 * 10)
+      const { data } = await supabase.storage.from(documentsBucket).createSignedUrl(fileUrl, 60 * 10)
 
-      if (!error && data?.signedUrl) {
+      if (data?.signedUrl) {
         window.open(data.signedUrl, '_blank', 'noopener,noreferrer')
       }
     } finally {
@@ -123,23 +122,6 @@ export default function LawyerDocumentsClient({ documents, immigrants }: Props) 
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-5">
-        <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <div className="text-sm text-slate-500">{messages.lawyerDocuments.stats.total}</div>
-          <div className="text-3xl font-bold text-slate-900 mt-2">{stats.totalDocuments}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <div className="text-sm text-slate-500">{messages.lawyerDocuments.stats.immigrants}</div>
-          <div className="text-3xl font-bold text-slate-900 mt-2">{stats.immigrantsWithDocuments}</div>
-        </div>
-        <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <div className="text-sm text-slate-500">{messages.lawyerDocuments.stats.latest}</div>
-          <div className="text-lg font-semibold text-slate-900 mt-2">
-            {stats.latestUpload ? formatDate(stats.latestUpload, locale) : messages.shared.placeholders.noDocuments}
-          </div>
-        </div>
-      </div>
-
       <div className="bg-white rounded-2xl border border-slate-100 p-4 sm:p-5">
         <div className="grid lg:grid-cols-[1fr,240px,220px] gap-3">
           <div className="relative">
@@ -156,14 +138,14 @@ export default function LawyerDocumentsClient({ documents, immigrants }: Props) 
           <div className="relative">
             <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
             <select
-              value={selectedImmigrantId}
-              onChange={(event) => setSelectedImmigrantId(event.target.value)}
+              value={selectedCaseId}
+              onChange={(event) => setSelectedCaseId(event.target.value)}
               className="w-full pl-10 pr-8 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-600 bg-white appearance-none"
             >
-              <option value="">{messages.lawyerDocuments.filters.allImmigrants}</option>
-              {immigrants.map((immigrant) => (
-                <option key={immigrant.id} value={immigrant.id}>
-                  {immigrant.full_name}
+              <option value="">All cases</option>
+              {cases.map((caseItem) => (
+                <option key={caseItem.id} value={caseItem.id}>
+                  {caseItem.title}
                 </option>
               ))}
             </select>
@@ -205,8 +187,10 @@ export default function LawyerDocumentsClient({ documents, immigrants }: Props) 
         <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
           <div className="divide-y divide-slate-50">
             {filteredDocuments.map((document) => {
+              const caseItem = document.case_id ? caseMap.get(document.case_id) : null
               const immigrant = immigrantMap.get(document.immigrant_id)
-              const status = immigrant ? getCaseStatusMeta(immigrant.case_status, locale) : null
+              const stage = caseItem ? getCaseStageMeta(caseItem.stage, locale) : null
+              const track = caseItem ? getCaseTrackMeta(caseItem.track_code as any, locale) : null
 
               return (
                 <div key={document.id} className="px-6 py-5 flex flex-col xl:flex-row xl:items-center gap-4">
@@ -220,16 +204,17 @@ export default function LawyerDocumentsClient({ documents, immigrants }: Props) 
                       <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 w-fit">
                         {getDocumentTypeLabel(document.document_type, locale)}
                       </span>
-                      {status && (
-                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium w-fit ${status.color}`}>
-                          {status.label}
+                      {stage && (
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium w-fit ${stage.color}`}>
+                          {stage.label}
                         </span>
                       )}
                     </div>
 
                     <div className="text-sm text-slate-500 mt-1 flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
                       <span>{immigrant?.full_name || messages.lawyerDocuments.unknownImmigrant}</span>
-                      <span>{immigrant?.nationality}</span>
+                      <span>{track?.shortTitle || '—'}</span>
+                      <span>{caseItem?.title || '—'}</span>
                       <span>{messages.lawyerDocuments.uploadedOn} {formatDate(document.uploaded_at, locale)}</span>
                     </div>
 
@@ -249,9 +234,9 @@ export default function LawyerDocumentsClient({ documents, immigrants }: Props) 
                       <Eye className="w-4 h-4" />
                       {messages.lawyerDocuments.viewFile}
                     </Button>
-                    {immigrant && (
+                    {caseItem && (
                       <Link
-                        href={`/lawyer/immigrants/${immigrant.id}`}
+                        href={`/lawyer/cases/${caseItem.id}`}
                         className="inline-flex items-center justify-center text-sm px-4 py-2 rounded-lg bg-brand-700 hover:bg-brand-800 text-white transition-colors"
                       >
                         {messages.lawyerDocuments.viewCase}

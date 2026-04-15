@@ -1,10 +1,19 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Briefcase, CheckCircle2, Mail, Search, Shield, UserCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useI18n } from '@/components/LanguageProvider'
+import { getCaseContent } from '@/lib/case-content'
+import { getCaseTrackMeta } from '@/lib/cases'
 import { formatDate } from '@/lib/utils'
+
+interface CaseOption {
+  id: string
+  title: string
+  track_code: string
+}
 
 interface LawyerRecord {
   user_id: string
@@ -18,6 +27,7 @@ interface LawyerRecord {
 interface PendingRequest {
   id: string
   immigrant_id: string
+  case_id?: string | null
   lawyer_user_id: string
   status: string
   created_at: string
@@ -26,7 +36,9 @@ interface PendingRequest {
 }
 
 interface Props {
-  immigrantId: string | null
+  immigrantId: string
+  cases: CaseOption[]
+  currentCaseId: string | null
   lawyers: LawyerRecord[]
   assignedLawyer: LawyerRecord | null
   pendingRequest: PendingRequest | null
@@ -34,18 +46,24 @@ interface Props {
 
 export default function ImmigrantLawyerSelectionClient({
   immigrantId,
+  cases,
+  currentCaseId,
   lawyers,
   assignedLawyer,
   pendingRequest,
 }: Props) {
+  const router = useRouter()
   const supabase = createClient()
   const { messages, locale } = useI18n()
+  const copy = getCaseContent(locale)
   const t = messages.immigrantLawyers
 
   const [search, setSearch] = useState('')
   const [requestingLawyerId, setRequestingLawyerId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [currentPendingRequest, setCurrentPendingRequest] = useState<PendingRequest | null>(pendingRequest)
+
+  const currentCase = cases.find((caseItem) => caseItem.id === currentCaseId) || null
 
   const filteredLawyers = lawyers.filter((lawyer) => {
     const query = search.toLowerCase().trim()
@@ -57,7 +75,7 @@ export default function ImmigrantLawyerSelectionClient({
   })
 
   async function handleRequestLawyer(lawyer: LawyerRecord) {
-    if (!immigrantId || assignedLawyer?.user_id === lawyer.user_id) return
+    if (!currentCaseId || assignedLawyer?.user_id === lawyer.user_id) return
     if (currentPendingRequest?.lawyer_user_id === lawyer.user_id) return
 
     setRequestingLawyerId(lawyer.user_id)
@@ -66,27 +84,29 @@ export default function ImmigrantLawyerSelectionClient({
     const respondedAt = new Date().toISOString()
 
     if (currentPendingRequest?.id) {
-      const { error: previousError } = await supabase
+      await supabase
         .from('lawyer_assignment_requests')
         .update({ status: 'withdrawn', responded_at: respondedAt })
         .eq('id', currentPendingRequest.id)
-
-      if (previousError) {
-        setFeedback({ type: 'error', message: t.messages.requestError })
-        setRequestingLawyerId(null)
-        return
-      }
     }
 
     const { data, error } = await supabase
       .from('lawyer_assignment_requests')
       .insert({
         immigrant_id: immigrantId,
+        case_id: currentCaseId,
         lawyer_user_id: lawyer.user_id,
         status: 'pending',
       })
       .select('*')
       .single()
+
+    await supabase.from('case_events').insert({
+      case_id: currentCaseId,
+      event_type: 'lawyer_requested',
+      title: 'Lawyer requested',
+      description: `Requested ${lawyer.full_name} for this case.`,
+    })
 
     if (error || !data) {
       setFeedback({ type: 'error', message: t.messages.requestError })
@@ -103,6 +123,7 @@ export default function ImmigrantLawyerSelectionClient({
       message: currentPendingRequest ? t.messages.requestUpdated : t.messages.requestSent,
     })
     setRequestingLawyerId(null)
+    router.refresh()
   }
 
   return (
@@ -110,6 +131,28 @@ export default function ImmigrantLawyerSelectionClient({
       <div>
         <h1 className="text-2xl font-bold text-slate-900">{t.title}</h1>
         <p className="text-slate-500 mt-1">{t.subtitle}</p>
+      </div>
+
+      <div className="rounded-3xl border border-slate-200 bg-white p-6">
+        <label className="block text-sm font-medium text-slate-700 mb-1.5">Case</label>
+        <select
+          value={currentCaseId || ''}
+          onChange={(event) => {
+            const value = event.target.value
+            router.push(value ? `/immigrant/lawyers?case=${value}` : '/immigrant/lawyers')
+          }}
+          className="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-600"
+        >
+          <option value="">Select a case</option>
+          {cases.map((caseItem) => (
+            <option key={caseItem.id} value={caseItem.id}>
+              {caseItem.title}
+            </option>
+          ))}
+        </select>
+        {currentCase ? (
+          <p className="text-sm text-slate-500 mt-3">{getCaseTrackMeta(currentCase.track_code as any, locale).title}</p>
+        ) : null}
       </div>
 
       {feedback && (
@@ -140,7 +183,7 @@ export default function ImmigrantLawyerSelectionClient({
               <div className="text-sm text-slate-600">{assignedLawyer.email}</div>
             </div>
           ) : (
-            <p className="text-sm text-slate-500">{messages.immigrantDashboard.noLawyerBody}</p>
+            <p className="text-sm text-slate-500">{copy.caseDetail.noLawyer}</p>
           )}
         </div>
 
@@ -180,7 +223,12 @@ export default function ImmigrantLawyerSelectionClient({
 
         <h2 className="font-semibold text-slate-900 mb-4">{t.available}</h2>
 
-        {lawyers.length === 0 ? (
+        {!currentCase ? (
+          <div className="py-12 text-center">
+            <Briefcase className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+            <p className="text-sm text-slate-400">{copy.newCase.linkedCasePlaceholder}</p>
+          </div>
+        ) : lawyers.length === 0 ? (
           <div className="py-12 text-center">
             <Briefcase className="w-10 h-10 text-slate-200 mx-auto mb-3" />
             <p className="text-sm text-slate-400">{t.noLawyers}</p>
@@ -241,7 +289,7 @@ export default function ImmigrantLawyerSelectionClient({
                   <button
                     type="button"
                     onClick={() => handleRequestLawyer(lawyer)}
-                    disabled={Boolean(assignedLawyer) || isAssigned || isPending || isBusy || !immigrantId}
+                    disabled={Boolean(assignedLawyer) || isAssigned || isPending || isBusy || !currentCase}
                     className="mt-5 w-full rounded-xl bg-brand-700 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
                   >
                     {isBusy ? t.requesting : isAssigned ? t.assigned : isPending ? t.requestSent : t.request}

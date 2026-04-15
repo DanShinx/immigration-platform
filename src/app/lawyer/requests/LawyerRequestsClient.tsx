@@ -5,22 +5,29 @@ import Link from 'next/link'
 import { ArrowRight, CheckCircle2, Clock3, Mail, ShieldX, UserSquare2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useI18n } from '@/components/LanguageProvider'
-import { formatDate, getCaseStatusMeta } from '@/lib/utils'
+import { getCaseContent } from '@/lib/case-content'
+import { getCaseStageMeta, getCaseTrackMeta } from '@/lib/cases'
+import { formatDate } from '@/lib/utils'
 
 interface RequestRecord {
   id: string
   immigrant_id: string
+  case_id?: string | null
   lawyer_user_id: string
   status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
   created_at: string
   responded_at?: string | null
+  caseItem: {
+    id: string
+    title: string
+    track_code: string
+    stage: string
+  } | null
   immigrant: {
     id: string
     full_name: string
     email: string
     nationality: string
-    case_status: string
-    created_at: string
   } | null
 }
 
@@ -31,7 +38,8 @@ interface Props {
 
 export default function LawyerRequestsClient({ requests, lawyerUserId }: Props) {
   const supabase = createClient()
-  const { messages, locale } = useI18n()
+  const { locale, messages } = useI18n()
+  const copy = getCaseContent(locale)
   const t = messages.lawyerRequests
 
   const [localRequests, setLocalRequests] = useState(requests)
@@ -47,6 +55,8 @@ export default function LawyerRequestsClient({ requests, lawyerUserId }: Props) 
   }
 
   async function handleRequestAction(request: RequestRecord, nextStatus: 'accepted' | 'rejected') {
+    if (!request.case_id) return
+
     setProcessingId(request.id)
     setFeedback(null)
 
@@ -64,50 +74,30 @@ export default function LawyerRequestsClient({ requests, lawyerUserId }: Props) 
     }
 
     if (nextStatus === 'accepted') {
-      const { error: immigrantError } = await supabase
-        .from('immigrants')
-        .update({ assigned_lawyer_id: lawyerUserId })
-        .eq('id', request.immigrant_id)
-
-      if (immigrantError) {
-        await supabase
-          .from('lawyer_assignment_requests')
-          .update({ status: 'pending', responded_at: null })
-          .eq('id', request.id)
-
-        setFeedback({ type: 'error', message: t.messages.error })
-        setProcessingId(null)
-        return
-      }
-
       await supabase
-        .from('lawyer_assignment_requests')
-        .update({ status: 'rejected', responded_at: respondedAt })
-        .eq('immigrant_id', request.immigrant_id)
-        .eq('status', 'pending')
-        .neq('id', request.id)
+        .from('cases')
+        .update({
+          assigned_lawyer_user_id: lawyerUserId,
+          stage: 'lawyer_review',
+          updated_at: respondedAt,
+        })
+        .eq('id', request.case_id)
+
+      await supabase.from('case_events').insert({
+        case_id: request.case_id,
+        actor_user_id: lawyerUserId,
+        event_type: 'lawyer_assigned',
+        title: 'Lawyer assigned',
+        description: 'A lawyer accepted the assignment request for this case.',
+      })
     }
 
     setLocalRequests((current) =>
-      current.map((item) => {
-        if (item.id === request.id) {
-          return {
-            ...item,
-            status: nextStatus,
-            responded_at: respondedAt,
-          }
-        }
-
-        if (nextStatus === 'accepted' && item.immigrant_id === request.immigrant_id && item.status === 'pending') {
-          return {
-            ...item,
-            status: 'rejected',
-            responded_at: respondedAt,
-          }
-        }
-
-        return item
-      })
+      current.map((item) =>
+        item.id === request.id
+          ? { ...item, status: nextStatus, responded_at: respondedAt }
+          : item
+      )
     )
 
     setFeedback({
@@ -163,9 +153,8 @@ export default function LawyerRequestsClient({ requests, lawyerUserId }: Props) 
         ) : (
           <div className="space-y-4">
             {pendingRequests.map((request) => {
-              const caseStatus = request.immigrant
-                ? getCaseStatusMeta(request.immigrant.case_status, locale)
-                : null
+              const stage = request.caseItem ? getCaseStageMeta(request.caseItem.stage, locale) : null
+              const track = request.caseItem ? getCaseTrackMeta(request.caseItem.track_code as any, locale) : null
 
               return (
                 <div key={request.id} className="rounded-2xl border border-slate-200 p-5 bg-slate-50/70">
@@ -173,28 +162,36 @@ export default function LawyerRequestsClient({ requests, lawyerUserId }: Props) 
                     <div className="space-y-3">
                       <div>
                         <div className="font-semibold text-slate-900">
-                          {request.immigrant?.full_name || messages.dashboardLayout.userFallback}
+                          {request.caseItem?.title || request.immigrant?.full_name || messages.dashboardLayout.userFallback}
                         </div>
                         <div className="text-xs text-slate-400 mt-1">
                           {t.requestedOn} {formatDate(request.created_at, locale)}
                         </div>
                       </div>
 
-                      {request.immigrant && (
-                        <div className="grid sm:grid-cols-3 gap-3 text-sm text-slate-600">
-                          <div className="flex items-center gap-2">
-                            <Mail className="w-4 h-4 text-slate-400" />
-                            <span>{request.immigrant.email}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400">{t.immigrantDetails.nationality}:</span>{' '}
-                            {request.immigrant.nationality}
-                          </div>
-                          <div>
-                            <span className="text-slate-400">{t.immigrantDetails.caseStatus}:</span>{' '}
-                            {caseStatus?.label || request.immigrant.case_status}
-                          </div>
+                      <div className="grid sm:grid-cols-2 gap-3 text-sm text-slate-600">
+                        <div>
+                          <span className="text-slate-400">{copy.lawyerRequests.caseLabel}:</span>{' '}
+                          {request.caseItem?.title || '—'}
                         </div>
+                        <div>
+                          <span className="text-slate-400">{copy.lawyerRequests.linkedTrack}:</span>{' '}
+                          {track?.title || '—'}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-slate-400" />
+                          <span>{request.immigrant?.email || '—'}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-400">{t.immigrantDetails.nationality}:</span>{' '}
+                          {request.immigrant?.nationality || '—'}
+                        </div>
+                      </div>
+
+                      {stage && (
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${stage.color}`}>
+                          {stage.label}
+                        </span>
                       )}
                     </div>
 
@@ -238,7 +235,7 @@ export default function LawyerRequestsClient({ requests, lawyerUserId }: Props) 
               <div key={request.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-slate-200 p-4">
                 <div>
                   <div className="font-medium text-slate-900">
-                    {request.immigrant?.full_name || messages.dashboardLayout.userFallback}
+                    {request.caseItem?.title || request.immigrant?.full_name || messages.dashboardLayout.userFallback}
                   </div>
                   <div className="text-xs text-slate-400 mt-1">
                     {request.responded_at
@@ -255,12 +252,12 @@ export default function LawyerRequestsClient({ requests, lawyerUserId }: Props) 
                       ? t.rejected
                       : t.withdrawn}
                   </span>
-                  {request.status === 'accepted' && request.immigrant && (
+                  {request.status === 'accepted' && request.caseItem && (
                     <Link
-                      href={`/lawyer/immigrants/${request.immigrant.id}`}
+                      href={`/lawyer/cases/${request.caseItem.id}`}
                       className="inline-flex items-center gap-1 text-sm text-brand-600 hover:text-brand-800 font-medium"
                     >
-                      {messages.shared.actions.view}
+                      {copy.lawyerCases.viewCase}
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
                   )}

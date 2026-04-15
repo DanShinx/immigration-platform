@@ -1,15 +1,18 @@
 'use client'
 
 import Link from 'next/link'
-import { Shield, Users, FileText, CheckCircle, Globe, Lock } from 'lucide-react'
+import { Shield, Users, FileText, CheckCircle, Globe, Lock, ArrowRight } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { useI18n } from '@/components/LanguageProvider'
+import { getCaseContent } from '@/lib/case-content'
+import { publicCategoryOrder } from '@/lib/cases'
 
 const featureIcons = [FileText, Shield, Globe, Users, CheckCircle, Lock]
 
 export default function HomePage() {
-  const { messages } = useI18n()
+  const { messages, locale } = useI18n()
   const t = messages.home
+  const caseContent = getCaseContent(locale)
 
   const featureColors = [
     'bg-blue-50 text-blue-600',
@@ -44,6 +47,9 @@ export default function HomePage() {
             <div className="hidden md:flex items-center gap-8">
               <a href="#features" className="text-sm text-slate-600 hover:text-brand-700 font-medium transition-colors">
                 {t.nav.features}
+              </a>
+              <a href="#categories" className="text-sm text-slate-600 hover:text-brand-700 font-medium transition-colors">
+                Nomad
               </a>
               <a href="#how-it-works" className="text-sm text-slate-600 hover:text-brand-700 font-medium transition-colors">
                 {t.nav.howItWorks}
@@ -154,6 +160,72 @@ export default function HomePage() {
                   </div>
                   <h3 className="font-semibold text-slate-900 mb-2">{feature.title}</h3>
                   <p className="text-sm text-slate-500 leading-relaxed">{feature.desc}</p>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section id="categories" className="py-24 bg-slate-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-3xl mb-14">
+            <div className="text-sm font-semibold uppercase tracking-[0.22em] text-brand-700">
+              {caseContent.categories.eyebrow}
+            </div>
+            <h2 className="text-4xl font-bold text-slate-900 mt-4">
+              {caseContent.categories.title}
+            </h2>
+            <p className="text-lg text-slate-500 mt-4 leading-relaxed">
+              {caseContent.categories.subtitle}
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-5">
+            {publicCategoryOrder.map((categoryCode) => {
+              const category = caseContent.categories.cards[categoryCode]
+              const isNomad = categoryCode === 'nomad'
+
+              return (
+                <div
+                  key={categoryCode}
+                  className={`rounded-3xl border p-6 flex flex-col ${
+                    isNomad
+                      ? 'bg-brand-900 border-brand-800 text-white'
+                      : 'bg-white border-slate-200'
+                  }`}
+                >
+                  <div
+                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide w-fit ${
+                      isNomad
+                        ? 'bg-white/15 text-brand-100'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    {isNomad
+                      ? caseContent.categories.availableNow
+                      : caseContent.categories.comingSoon}
+                  </div>
+                  <h3 className={`text-xl font-semibold mt-5 ${isNomad ? 'text-white' : 'text-slate-900'}`}>
+                    {category.title}
+                  </h3>
+                  <p className={`text-sm leading-relaxed mt-3 flex-1 ${isNomad ? 'text-brand-100' : 'text-slate-500'}`}>
+                    {category.description}
+                  </p>
+
+                  {isNomad ? (
+                    <Link
+                      href="/categories/nomad"
+                      className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-white"
+                    >
+                      {caseContent.categories.exploreNomad}
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
+                  ) : (
+                    <div className="mt-6 text-sm font-medium text-slate-400">
+                      {caseContent.categories.comingSoon}
+                    </div>
+                  )}
                 </div>
               )
             })}
